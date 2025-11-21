@@ -1,0 +1,125 @@
+Listing models...
+- models/embedding-gecko-001 (Display: Embedding Gecko)
+  Supported methods: undefined
+- models/gemini-2.5-pro-preview-03-25 (Display: Gemini 2.5 Pro Preview 03-25)
+  Supported methods: undefined
+- models/gemini-2.5-flash (Display: Gemini 2.5 Flash)
+  Supported methods: undefined
+- models/gemini-2.5-pro-preview-05-06 (Display: Gemini 2.5 Pro Preview 05-06)
+  Supported methods: undefined
+- models/gemini-2.5-pro-preview-06-05 (Display: Gemini 2.5 Pro Preview)
+  Supported methods: undefined
+- models/gemini-2.5-pro (Display: Gemini 2.5 Pro)
+  Supported methods: undefined
+- models/gemini-2.0-flash-exp (Display: Gemini 2.0 Flash Experimental)
+  Supported methods: undefined
+- models/gemini-2.0-flash (Display: Gemini 2.0 Flash)
+  Supported methods: undefined
+- models/gemini-2.0-flash-001 (Display: Gemini 2.0 Flash 001)
+  Supported methods: undefined
+- models/gemini-2.0-flash-lite-001 (Display: Gemini 2.0 Flash-Lite 001)
+  Supported methods: undefined
+- models/gemini-2.0-flash-lite (Display: Gemini 2.0 Flash-Lite)
+  Supported methods: undefined
+- models/gemini-2.0-flash-lite-preview-02-05 (Display: Gemini 2.0 Flash-Lite Preview 02-05)
+  Supported methods: undefined
+- models/gemini-2.0-flash-lite-preview (Display: Gemini 2.0 Flash-Lite Preview)
+  Supported methods: undefined
+- models/gemini-2.0-pro-exp (Display: Gemini 2.0 Pro Experimental)
+  Supported methods: undefined
+- models/gemini-2.0-pro-exp-02-05 (Display: Gemini 2.0 Pro Experimental 02-05)
+  Supported methods: undefined
+- models/gemini-exp-1206 (Display: Gemini Experimental 1206)
+  Supported methods: undefined
+- models/gemini-2.0-flash-thinking-exp-01-21 (Display: Gemini 2.5 Flash Preview 05-20)
+  Supported methods: undefined
+- models/gemini-2.0-flash-thinking-exp (Display: Gemini 2.5 Flash Preview 05-20)
+  Supported methods: undefined
+- models/gemini-2.0-flash-thinking-exp-1219 (Display: Gemini 2.5 Flash Preview 05-20)
+  Supported methods: undefined
+- models/gemini-2.5-flash-preview-tts (Display: Gemini 2.5 Flash Preview TTS)
+  Supported methods: undefined
+- models/gemini-2.5-pro-preview-tts (Display: Gemini 2.5 Pro Preview TTS)
+  Supported methods: undefined
+- models/learnlm-2.0-flash-experimental (Display: LearnLM 2.0 Flash Experimental)
+  Supported methods: undefined
+- models/gemma-3-1b-it (Display: Gemma 3 1B)
+  Supported methods: undefined
+- models/gemma-3-4b-it (Display: Gemma 3 4B)
+  Supported methods: undefined
+- models/gemma-3-12b-it (Display: Gemma 3 12B)
+  Supported methods: undefined
+- models/gemma-3-27b-it (Display: Gemma 3 27B)
+  Supported methods: undefined
+- models/gemma-3n-e4b-it (Display: Gemma 3n E4B)
+  Supported methods: undefined
+- models/gemma-3n-e2b-it (Display: Gemma 3n E2B)
+  Supported methods: undefined
+- models/gemini-flash-latest (Display: Gemini Flash Latest)
+  Supported methods: undefined
+- models/gemini-flash-lite-latest (Display: Gemini Flash-Lite Latest)
+  Supported methods: undefined
+- models/gemini-pro-latest (Display: Gemini Pro Latest)
+  Supported methods: undefined
+- models/gemini-2.5-flash-lite (Display: Gemini 2.5 Flash-Lite)
+  Supported methods: undefined
+- models/gemini-2.5-flash-image-preview (Display: Nano Banana)
+  Supported methods: undefined
+- models/gemini-2.5-flash-image (Display: Nano Banana)
+  Supported methods: undefined
+- models/gemini-2.5-flash-preview-09-2025 (Display: Gemini 2.5 Flash Preview Sep 2025)
+  Supported methods: undefined
+- models/gemini-2.5-flash-lite-preview-09-2025 (Display: Gemini 2.5 Flash-Lite Preview Sep 2025)
+  Supported methods: undefined
+- models/gemini-3-pro-preview (Display: Gemini 3 Pro Preview)
+  Supported methods: undefined
+- models/gemini-3-pro-image-preview (Display: Nano Banana Pro)
+  Supported methods: undefined
+- models/nano-banana-pro-preview (Display: Nano Banana Pro)
+  Supported methods: undefined
+- models/gemini-robotics-er-1.5-preview (Display: Gemini Robotics-ER 1.5 Preview)
+  Supported methods: undefined
+- models/gemini-2.5-computer-use-preview-10-2025 (Display: Gemini 2.5 Computer Use Preview 10-2025)
+  Supported methods: undefined
+- models/embedding-001 (Display: Embedding 001)
+  Supported methods: undefined
+- models/text-embedding-004 (Display: Text Embedding 004)
+  Supported methods: undefined
+- models/gemini-embedding-exp-03-07 (Display: Gemini Embedding Experimental 03-07)
+  Supported methods: undefined
+- models/gemini-embedding-exp (Display: Gemini Embedding Experimental)
+  Supported methods: undefined
+- models/gemini-embedding-001 (Display: Gemini Embedding 001)
+  Supported methods: undefined
+- models/aqa (Display: Model that performs Attributed Question Answering.)
+  Supported methods: undefined
+- models/imagen-4.0-generate-preview-06-06 (Display: Imagen 4 (Preview))
+  Supported methods: undefined
+- models/imagen-4.0-ultra-generate-preview-06-06 (Display: Imagen 4 Ultra (Preview))
+  Supported methods: undefined
+- models/imagen-4.0-generate-001 (Display: Imagen 4)
+  Supported methods: undefined
+- models/imagen-4.0-ultra-generate-001 (Display: Imagen 4 Ultra)
+  Supported methods: undefined
+- models/imagen-4.0-fast-generate-001 (Display: Imagen 4 Fast)
+  Supported methods: undefined
+- models/veo-2.0-generate-001 (Display: Veo 2)
+  Supported methods: undefined
+- models/veo-3.0-generate-001 (Display: Veo 3)
+  Supported methods: undefined
+- models/veo-3.0-fast-generate-001 (Display: Veo 3 fast)
+  Supported methods: undefined
+- models/veo-3.1-generate-preview (Display: Veo 3.1)
+  Supported methods: undefined
+- models/veo-3.1-fast-generate-preview (Display: Veo 3.1 fast)
+  Supported methods: undefined
+- models/gemini-2.0-flash-live-001 (Display: Gemini 2.0 Flash 001)
+  Supported methods: undefined
+- models/gemini-live-2.5-flash-preview (Display: Gemini Live 2.5 Flash Preview)
+  Supported methods: undefined
+- models/gemini-2.5-flash-live-preview (Display: Gemini 2.5 Flash Live Preview)
+  Supported methods: undefined
+- models/gemini-2.5-flash-native-audio-latest (Display: Gemini 2.5 Flash Native Audio Latest)
+  Supported methods: undefined
+- models/gemini-2.5-flash-native-audio-preview-09-2025 (Display: Gemini 2.5 Flash Native Audio Preview 09-2025)
+  Supported methods: undefined
