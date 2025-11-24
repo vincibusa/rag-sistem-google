@@ -9,6 +9,7 @@ import {
 } from '@/lib/file-search'
 import type { File } from '@/lib/types'
 import { SUPPORTED_FILE_TYPES, MAX_FILE_SIZE } from '@/lib/constants'
+import { convertFileIfNeeded } from '@/lib/file-conversion'
 
 export async function uploadFileAction(
   userId: string,
@@ -74,24 +75,28 @@ export async function uploadFileAction(
     // Convert file to buffer
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    // Upload to File Search store
+    // Convert file if needed (Excel, Word legacy, etc.)
+    const converted = await convertFileIfNeeded(buffer, file.type, file.name)
+
+    // Upload to File Search store (using converted buffer and filename)
     const uploadResult = await uploadToFileSearchStore(
-      buffer,
+      converted.buffer,
       fileSearchStore.file_search_store_name,
-      file.name
+      converted.convertedFilename
     )
 
     // Generate a URI for the file - either from the operation or a fallback
     // The File Search API will handle the actual file reference
-    const geminiUri = (uploadResult as any)?.response?.documentName || (uploadResult as any)?.name || `fileSearchStore://${fileSearchStore.id}/${file.name}`
+    const geminiUri = (uploadResult as any)?.response?.documentName || (uploadResult as any)?.name || `fileSearchStore://${fileSearchStore.id}/${converted.convertedFilename}`
 
     // Save metadata to Supabase (not the file itself)
-    console.log('💾 Saving file metadata to database:', { notebookId, fileName: file.name, geminiUri })
+    // Use converted filename and mimetype, but original size
+    console.log('💾 Saving file metadata to database:', { notebookId, fileName: converted.convertedFilename, geminiUri })
     const dbFile = await addFileToNotebook(
       notebookId,
-      file.name,
+      converted.convertedFilename,
       geminiUri,
-      file.type,
+      converted.mimeType,
       file.size,
       supabase,
       fileSearchStore.id

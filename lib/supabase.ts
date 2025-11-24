@@ -144,7 +144,8 @@ export async function addMessage(
   role: 'user' | 'assistant',
   content: string,
   fileUris: string[] = [],
-  client?: SupabaseClient<Database>
+  client?: SupabaseClient<Database>,
+  documentSessionId?: string
 ) {
   const supabaseClient = getClient(client)
   const { data, error } = await supabaseClient
@@ -155,6 +156,7 @@ export async function addMessage(
         role,
         content,
         file_uris: fileUris,
+        document_session_id: documentSessionId || null,
       },
     ])
     .select()

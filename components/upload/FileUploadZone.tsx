@@ -39,6 +39,9 @@ export function FileUploadZone({ onFilesSelected, isLoading = false }: FileUploa
       'text/plain': ['.txt'],
       'text/csv': ['.csv'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/msword': ['.doc'],
     },
     disabled: isLoading,
   })
@@ -58,7 +61,7 @@ export function FileUploadZone({ onFilesSelected, isLoading = false }: FileUploa
           <p className="text-sm text-muted-foreground">or click to select files</p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Supported: PDF, TXT, CSV, DOCX (Max {MAX_FILE_SIZE / 1024 / 1024}MB)
+          Supported: PDF, TXT, CSV, DOCX, XLSX, XLS, DOC (Max {MAX_FILE_SIZE / 1024 / 1024}MB)
         </p>
       </div>
     </Card>

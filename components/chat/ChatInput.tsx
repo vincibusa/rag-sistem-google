@@ -1,9 +1,11 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import { Send, Loader2 } from 'lucide-react'
+import React, { useState, useRef } from 'react'
+import { Send, Loader2, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void
@@ -17,6 +19,7 @@ export function ChatInput({
   placeholder = 'Ask something about your documents...',
 }: ChatInputProps) {
   const [message, setMessage] = useState('')
+  const [isFocused, setIsFocused] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSendMessage = () => {
@@ -45,25 +48,70 @@ export function ChatInput({
   }
 
   return (
-    <div className="flex gap-2">
-      <Textarea
-        ref={textareaRef}
-        value={message}
-        onChange={handleTextareaChange}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        disabled={isLoading}
-        className="resize-none max-h-[200px]"
-        rows={1}
-      />
-      <Button
-        onClick={handleSendMessage}
-        disabled={!message.trim() || isLoading}
-        size="icon"
-        className="flex-shrink-0"
-      >
-        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-      </Button>
-    </div>
+    <motion.div
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className={cn(
+        "relative flex items-end gap-2 p-2 rounded-2xl border bg-background shadow-lg transition-all duration-300",
+        isFocused ? "ring-2 ring-primary/20 border-primary/50 shadow-xl" : "border-border/50"
+      )}
+    >
+      <div className="flex-1 relative">
+        <Textarea
+          ref={textareaRef}
+          value={message}
+          onChange={handleTextareaChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder={placeholder}
+          disabled={isLoading}
+          className="min-h-[24px] max-h-[200px] w-full resize-none bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-3 text-base placeholder:text-muted-foreground/50"
+          rows={1}
+        />
+      </div>
+
+      <div className="flex items-center gap-2 pb-1 pr-1">
+        <AnimatePresence mode="wait">
+          {message.trim() ? (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                onClick={handleSendMessage}
+                disabled={isLoading}
+                size="icon"
+                className="h-10 w-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all hover:scale-105 active:scale-95"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                disabled
+                size="icon"
+                variant="ghost"
+                className="h-10 w-10 rounded-xl text-muted-foreground/50"
+              >
+                <Send className="h-5 w-5" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   )
 }

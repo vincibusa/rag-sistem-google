@@ -7,11 +7,60 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
+      document_sessions: {
+        Row: {
+          compiled_content: string | null
+          created_at: string | null
+          extracted_text: string
+          file_type: string
+          id: string
+          notebook_id: string
+          original_file_name: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          compiled_content?: string | null
+          created_at?: string | null
+          extracted_text: string
+          file_type: string
+          id?: string
+          notebook_id: string
+          original_file_name: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          compiled_content?: string | null
+          created_at?: string | null
+          extracted_text?: string
+          file_type?: string
+          id?: string
+          notebook_id?: string
+          original_file_name?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_sessions_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_search_stores: {
         Row: {
           created_at: string | null
@@ -102,6 +151,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string | null
+          document_session_id: string | null
           file_uris: string[] | null
           id: string
           notebook_id: string
@@ -110,6 +160,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string | null
+          document_session_id?: string | null
           file_uris?: string[] | null
           id?: string
           notebook_id: string
@@ -118,12 +169,20 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string | null
+          document_session_id?: string | null
           file_uris?: string[] | null
           id?: string
           notebook_id?: string
           role?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_document_session_id_fkey"
+            columns: ["document_session_id"]
+            isOneToOne: false
+            referencedRelation: "document_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_notebook_id_fkey"
             columns: ["notebook_id"]

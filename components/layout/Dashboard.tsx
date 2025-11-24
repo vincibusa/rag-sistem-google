@@ -12,6 +12,13 @@ import {
 } from '@/app/actions/notebooks'
 import { getFilesAction, uploadFileAction, deleteFileAction } from '@/app/actions/files'
 import { sendMessageAction, getMessagesAction } from '@/app/actions/chat'
+import {
+  uploadDocumentForCompilation,
+  downloadCompiledDocument,
+  clearDocumentSession,
+  getActiveDocumentSession,
+  updateCompiledDocument,
+} from '@/app/actions/document-compilation'
 import { getFileSearchStoreNames } from '@/lib/supabase'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
@@ -55,6 +62,10 @@ export function Dashboard() {
     isLoading: chatLoading,
     setStreaming,
     isStreaming,
+    documentSession,
+    setDocumentSession,
+    updateDocumentSessionContent,
+    clearDocumentSession: clearDocumentSessionStore,
   } = useChatStore()
 
   const [isDeletingNotebook, setIsDeletingNotebook] = useState<string | null>(null)
@@ -68,14 +79,16 @@ export function Dashboard() {
     }
   }, [user, accessToken])
 
-  // Load files and messages when notebook changes
+  // Load files, messages, and document session when notebook changes
   useEffect(() => {
     if (currentNotebookId) {
       loadFiles()
       loadMessages()
+      loadDocumentSession()
     } else {
       setFiles([])
       setMessages([])
+      clearDocumentSessionStore()
     }
   }, [currentNotebookId])
 
@@ -120,6 +133,17 @@ export function Dashboard() {
     } catch (error) {
       console.error('Error loading messages:', error)
       toast.error('Failed to load messages')
+    }
+  }
+
+  const loadDocumentSession = async () => {
+    if (!currentNotebookId || !user || !accessToken) return
+    try {
+      const session = await getActiveDocumentSession(user.id, accessToken, currentNotebookId)
+      setDocumentSession(session)
+    } catch (error) {
+      console.error('Error loading document session:', error)
+      // Don't show error toast for this - it's ok if there's no active session
     }
   }
 
@@ -197,6 +221,76 @@ export function Dashboard() {
     }
   }
 
+  const handleUploadDocument = async () => {
+    if (!currentNotebookId || !user || !accessToken) {
+      toast.error('Please select a notebook first')
+      return
+    }
+
+    // Create file input to trigger file picker
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        toast.loading('Uploading document...', { id: 'upload-doc' })
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const session = await uploadDocumentForCompilation(user.id, accessToken, currentNotebookId, formData)
+        setDocumentSession(session)
+        toast.success('Document loaded! Start asking me to fill it out.', { id: 'upload-doc' })
+      } catch (error) {
+        console.error('Error uploading document:', error)
+        toast.error('Failed to upload document', { id: 'upload-doc' })
+      }
+    }
+    input.click()
+  }
+
+  const handleDownloadDocument = async () => {
+    if (!documentSession || !user || !accessToken) return
+
+    try {
+      toast.loading('Generating document...', { id: 'download-doc' })
+      const { fileName, fileData, mimeType } = await downloadCompiledDocument(
+        user.id,
+        accessToken,
+        documentSession.id
+      )
+
+      // Create blob and trigger download
+      const blob = new Blob([fileData], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
+
+      toast.success('Document downloaded!', { id: 'download-doc' })
+    } catch (error) {
+      console.error('Error downloading document:', error)
+      toast.error('Failed to download document', { id: 'download-doc' })
+    }
+  }
+
+  const handleClearDocument = async () => {
+    if (!documentSession || !user || !accessToken) return
+
+    try {
+      await clearDocumentSession(user.id, accessToken, documentSession.id)
+      clearDocumentSessionStore()
+      toast.success('Document session closed')
+    } catch (error) {
+      console.error('Error clearing document session:', error)
+      toast.error('Failed to clear document session')
+    }
+  }
+
   const handleSendMessage = async (message: string) => {
     console.log('🔵 handleSendMessage called', { message, isStreaming, hasAbortController: abortControllerRef.current !== null })
 
@@ -222,8 +316,15 @@ export function Dashboard() {
       const fileUris = files.map((f) => f.gemini_uri)
       const fileSearchStoreNames = await getFileSearchStoreNames(currentNotebookId)
 
-      // Save user message
-      const userMessage = await sendMessageAction(user.id, accessToken, currentNotebookId, message, fileUris)
+      // Save user message (with document session id if present)
+      const userMessage = await sendMessageAction(
+        user.id,
+        accessToken,
+        currentNotebookId,
+        message,
+        fileUris,
+        documentSession?.id
+      )
       addMessage(userMessage)
 
       // Stream assistant response
@@ -244,6 +345,7 @@ export function Dashboard() {
             { role: 'user', content: message },
           ],
           fileSearchStoreNames,
+          documentSessionId: documentSession?.id,
         }),
         signal: abortControllerRef.current.signal,
       })
@@ -323,6 +425,10 @@ export function Dashboard() {
                   onSendMessage={handleSendMessage}
                   isLoading={isStreaming}
                   isEmpty={messages.length === 0}
+                  documentSession={documentSession}
+                  onUploadDocument={handleUploadDocument}
+                  onDownloadDocument={handleDownloadDocument}
+                  onClearDocument={handleClearDocument}
                 />
               </TabsContent>
 
