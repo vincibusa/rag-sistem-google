@@ -1,5 +1,47 @@
 import PizZip from 'pizzip'
 import ExcelJS from 'exceljs'
+// @ts-ignore
+import PDFParser from 'pdf2json'
+
+/**
+ * Extract text content from PDF file
+ */
+export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('📕 Extracting text from PDF...')
+
+      const pdfParser = new PDFParser(null, true) // true enables raw text content extraction
+
+      pdfParser.on('pdfParser_dataError', (errData: any) => {
+        console.error('❌ Error extracting text from PDF:', errData.parserError)
+        reject(new Error(`Failed to extract text from PDF: ${errData.parserError}`))
+      })
+
+      pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+        try {
+          // pdf2json returns text in a specific format, we need to parse it
+          // The raw text content is usually available directly if we use the right options,
+          // but let's extract it from the pages
+          const text = pdfParser.getRawTextContent()
+
+          console.log('✅ Text extracted from PDF')
+          console.log('📏 Extracted text length:', text.length, 'characters')
+          console.log('📝 Preview:', text.substring(0, 300))
+
+          resolve(text)
+        } catch (error) {
+          reject(error)
+        }
+      })
+
+      pdfParser.parseBuffer(buffer)
+    } catch (error) {
+      console.error('❌ Error extracting text from PDF:', error)
+      reject(new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : String(error)}`))
+    }
+  })
+}
 
 /**
  * Extract text content from DOCX file
@@ -50,7 +92,7 @@ export async function extractTextFromXLSX(buffer: Buffer): Promise<string> {
     console.log('📊 Extracting text from XLSX...')
 
     const workbook = new ExcelJS.Workbook()
-    await workbook.xlsx.load(buffer)
+    await workbook.xlsx.load(buffer as any)
 
     let extractedText = ''
 
@@ -113,8 +155,7 @@ export async function extractTextFromDocument(
       return await extractTextFromXLSX(buffer)
 
     case 'pdf':
-      // PDF can be sent directly to Gemini, no extraction needed
-      return null
+      return await extractTextFromPDF(buffer)
 
     default:
       console.warn('⚠️ Unknown format for text extraction:', format)

@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useNotebookStore } from '@/store/notebook-store'
 import { useFilesStore } from '@/store/files-store'
 import { useChatStore } from '@/store/chat-store'
+import { useEntitiesStore } from '@/store/entities-store'
 import {
   getNotebooksAction,
   createNotebookAction,
@@ -12,6 +13,7 @@ import {
 } from '@/app/actions/notebooks'
 import { getFilesAction, uploadFileAction, deleteFileAction } from '@/app/actions/files'
 import { sendMessageAction, getMessagesAction } from '@/app/actions/chat'
+import { getEntitiesAction } from '@/app/actions/entities'
 import {
   uploadDocumentForCompilation,
   downloadCompiledDocument,
@@ -20,11 +22,13 @@ import {
   updateCompiledDocument,
 } from '@/app/actions/document-compilation'
 import { getFileSearchStoreNames } from '@/lib/supabase'
+import { containsPlaceholders, countPlaceholders } from '@/lib/document-validation'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { FileUploadZone } from '../upload/FileUploadZone'
 import { FileList } from '../upload/FileList'
 import { ChatContainer } from '../chat/ChatContainer'
+import { EntitiesList } from '../entities/EntitiesList'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
@@ -68,9 +72,17 @@ export function Dashboard() {
     clearDocumentSession: clearDocumentSessionStore,
   } = useChatStore()
 
+  const {
+    entities,
+    setEntities,
+    setLoading: setEntitiesLoading,
+  } = useEntitiesStore()
+
   const [isDeletingNotebook, setIsDeletingNotebook] = useState<string | null>(null)
   const [isDeletingFile, setIsDeletingFile] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const autoContinuationCountRef = useRef<number>(0)
+  const autoContinuationTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load notebooks on mount or when user/accessToken changes
   useEffect(() => {
@@ -79,15 +91,17 @@ export function Dashboard() {
     }
   }, [user, accessToken])
 
-  // Load files, messages, and document session when notebook changes
+  // Load files, messages, entities, and document session when notebook changes
   useEffect(() => {
     if (currentNotebookId) {
       loadFiles()
       loadMessages()
+      loadEntities()
       loadDocumentSession()
     } else {
       setFiles([])
       setMessages([])
+      setEntities([])
       clearDocumentSessionStore()
     }
   }, [currentNotebookId])
@@ -133,6 +147,20 @@ export function Dashboard() {
     } catch (error) {
       console.error('Error loading messages:', error)
       toast.error('Failed to load messages')
+    }
+  }
+
+  const loadEntities = async () => {
+    if (!currentNotebookId || !user || !accessToken) return
+    try {
+      setEntitiesLoading(true)
+      const data = await getEntitiesAction(user.id, accessToken, currentNotebookId)
+      setEntities(data)
+    } catch (error) {
+      console.error('Error loading entities:', error)
+      toast.error('Failed to load entities')
+    } finally {
+      setEntitiesLoading(false)
     }
   }
 
@@ -379,10 +407,53 @@ export function Dashboard() {
         // Use updateLastMessage instead of addMessage to avoid re-render spam
         updateLastMessage(assistantContent)
       }
+
+      // Save compiled content to database if there's a document session
+      if (documentSession && assistantContent) {
+        try {
+          await updateCompiledDocument(user.id, accessToken, documentSession.id, assistantContent)
+          updateDocumentSessionContent(assistantContent) // Update store as well
+          console.log('✅ Compiled content saved to database')
+        } catch (error) {
+          console.error('⚠️ Error saving compiled content:', error)
+          // Don't throw - continue with auto-continuation even if save fails
+        }
+      }
+
+      // Auto-continuation for document compilation
+      // If there's an active document session and the response still has placeholders
+      if (documentSession && containsPlaceholders(assistantContent)) {
+        const placeholderCount = countPlaceholders(assistantContent)
+
+        // Limit auto-continuation to 3 times to prevent infinite loops
+        if (autoContinuationCountRef.current < 3) {
+          autoContinuationCountRef.current += 1
+          console.log(`🔄 Auto-continuation ${autoContinuationCountRef.current}/3: ${placeholderCount} placeholders remaining`)
+
+          // Wait 2 seconds before auto-continuing (give user time to read)
+          autoContinuationTimerRef.current = setTimeout(() => {
+            console.log('🔄 Triggering auto-continuation...')
+            handleSendMessage('Continua a compilare i campi rimanenti del documento. Non fermarti, compila TUTTO fino alla fine.')
+          }, 2000)
+        } else {
+          // Max attempts reached
+          console.log('⚠️ Max auto-continuation attempts reached')
+          toast.info(`Documento compilato con ${placeholderCount} campi ancora vuoti. Puoi chiedere di continuare se necessario.`)
+          autoContinuationCountRef.current = 0 // Reset for next document
+        }
+      } else {
+        // Document complete or no document session
+        autoContinuationCountRef.current = 0 // Reset counter
+        if (documentSession && !containsPlaceholders(assistantContent)) {
+          // Document fully compiled!
+          toast.success('Documento completamente compilato! Puoi scaricarlo ora.')
+        }
+      }
     } catch (error) {
       console.error('🔴 Error sending message:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message'
       toast.error(errorMessage)
+      autoContinuationCountRef.current = 0 // Reset on error
     } finally {
       console.log('🔓 Lock released, streaming finished')
       setStreaming(false)
@@ -417,6 +488,7 @@ export function Dashboard() {
               <TabsList>
                 <TabsTrigger value="chat">Chat</TabsTrigger>
                 <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="entities">Data Registry</TabsTrigger>
               </TabsList>
 
               <TabsContent value="chat" className="flex-1 overflow-hidden">
@@ -451,6 +523,10 @@ export function Dashboard() {
                     />
                   </div>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="entities" className="flex-1 overflow-auto">
+                <EntitiesList notebookId={currentNotebookId} />
               </TabsContent>
             </Tabs>
           </div>

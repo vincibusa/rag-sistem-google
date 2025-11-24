@@ -10,6 +10,9 @@ import {
 import type { File } from '@/lib/types'
 import { SUPPORTED_FILE_TYPES, MAX_FILE_SIZE } from '@/lib/constants'
 import { convertFileIfNeeded } from '@/lib/file-conversion'
+import { extractTextFromDOCX, extractTextFromXLSX, extractTextFromPDF } from '@/lib/text-extractors'
+import { extractEntitiesFromText } from '@/lib/entity-extraction'
+import { bulkCreateEntitiesAction } from './entities'
 
 export async function uploadFileAction(
   userId: string,
@@ -103,10 +106,88 @@ export async function uploadFileAction(
     )
     console.log('✅ File metadata saved to database:', dbFile)
 
+    // Extract entities from the uploaded file (background task - don't block upload)
+    // Use converted MIME type and filename since the file may have been converted
+    extractAndSaveEntities(userId, accessToken, notebookId, dbFile.id, converted.buffer, converted.mimeType, converted.convertedFilename)
+      .catch(error => {
+        console.error('⚠️ Entity extraction failed (non-blocking):', error)
+      })
+
     return dbFile
   } catch (error) {
     console.error('Error uploading file:', error)
     throw error
+  }
+}
+
+/**
+ * Extract entities from file and save to database
+ * This runs in the background and doesn't block the file upload
+ */
+async function extractAndSaveEntities(
+  userId: string,
+  accessToken: string,
+  notebookId: string,
+  fileId: string,
+  buffer: Buffer,
+  mimeType: string,
+  fileName: string
+): Promise<void> {
+  try {
+    console.log(`🔍 Starting entity extraction for ${fileName}`)
+
+    // Extract text based on file type
+    let extractedText: string
+
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      // DOCX file
+      extractedText = await extractTextFromDOCX(buffer)
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      mimeType === 'application/vnd.ms-excel'
+    ) {
+      // XLSX/XLS file
+      extractedText = await extractTextFromXLSX(buffer)
+    } else if (mimeType === 'text/plain' || mimeType === 'text/csv') {
+      // Plain text or CSV
+      extractedText = buffer.toString('utf-8')
+    } else if (mimeType === 'application/pdf') {
+      // PDF file
+      extractedText = await extractTextFromPDF(buffer)
+    } else {
+      console.warn(`⚠️ Unsupported file type for entity extraction: ${mimeType}`)
+      return // Skip entity extraction for unsupported types
+    }
+
+    if (!extractedText || extractedText.trim().length === 0) {
+      console.warn(`⚠️ No text extracted from ${fileName}, skipping entity extraction`)
+      return
+    }
+
+    console.log(`📝 Extracted ${extractedText.length} characters from ${fileName}`)
+
+    // Extract entities using Gemini AI
+    const entities = await extractEntitiesFromText(extractedText, fileName)
+
+    if (entities.length === 0) {
+      console.log(`ℹ️ No entities found in ${fileName}`)
+      return
+    }
+
+    // Save entities to database
+    const entitiesToSave = entities.map(entity => ({
+      entity_type: entity.entity_type,
+      entity_name: entity.entity_name,
+      attributes: entity.attributes,
+      source_file_id: fileId,
+    }))
+
+    await bulkCreateEntitiesAction(userId, accessToken, notebookId, entitiesToSave)
+
+    console.log(`✅ Saved ${entities.length} entities from ${fileName}`)
+  } catch (error) {
+    console.error(`❌ Entity extraction failed for ${fileName}:`, error)
+    // Don't throw - this is a background task
   }
 }
 
@@ -160,8 +241,8 @@ export async function deleteFileAction(
 
     // File Search handles document deletion at the store level
     // Individual file deletion is not needed - they'll be removed when the store is deleted
-    // Delete from database
-    await deleteFileFromDB(fileId)
+    // Soft delete from database (pass the authenticated client)
+    await deleteFileFromDB(fileId, supabase)
   } catch (error) {
     console.error('Error deleting file:', error)
     throw error

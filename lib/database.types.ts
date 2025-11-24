@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      document_entities: {
+        Row: {
+          attributes: Json
+          created_at: string | null
+          entity_name: string
+          entity_type: string
+          id: string
+          notebook_id: string
+          source_file_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attributes?: Json
+          created_at?: string | null
+          entity_name: string
+          entity_type: string
+          id?: string
+          notebook_id: string
+          source_file_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attributes?: Json
+          created_at?: string | null
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          notebook_id?: string
+          source_file_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_entities_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_entities_source_file_id_fkey"
+            columns: ["source_file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_sessions: {
         Row: {
           compiled_content: string | null

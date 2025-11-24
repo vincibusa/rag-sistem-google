@@ -111,10 +111,22 @@ export async function getNotebookFiles(notebookId: string, client?: SupabaseClie
   return data
 }
 
-export async function deleteFile(fileId: string) {
-  const { error } = await supabase.from('files').delete().eq('id', fileId)
+export async function deleteFile(fileId: string, client?: SupabaseClient<Database>) {
+  // Soft delete: set status to 'deleted' instead of hard delete
+  // This preserves the record for audit purposes and prevents orphaned data
+  const supabaseClient = getClient(client)
 
-  if (error) throw error
+  const { error } = await supabaseClient
+    .from('files')
+    .update({ status: 'deleted' })
+    .eq('id', fileId)
+
+  if (error) {
+    console.error('❌ Error soft-deleting file:', error)
+    throw error
+  }
+
+  console.log(`✅ File marked as deleted: ${fileId}`)
 }
 
 /**

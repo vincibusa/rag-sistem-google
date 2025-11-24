@@ -45,12 +45,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Get extracted entities for this notebook
+    const { data: entities } = await supabase
+      .from('document_entities')
+      .select('*')
+      .eq('notebook_id', notebookId)
+      .order('created_at', { ascending: false })
+
     // Create a ReadableStream that will stream the response
     const readable = new ReadableStream({
       async start(controller) {
         try {
           const encoder = new TextEncoder()
-          for await (const chunk of streamChatResponse(messages, fileSearchStoreNames || [], documentContext)) {
+          for await (const chunk of streamChatResponse(messages, fileSearchStoreNames || [], documentContext, entities || [])) {
             if (typeof chunk === 'string') {
               controller.enqueue(encoder.encode(chunk))
             }
