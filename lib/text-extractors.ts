@@ -145,20 +145,45 @@ export async function extractTextFromXLSX(buffer: Buffer): Promise<string> {
  */
 export async function extractTextFromDocument(
   buffer: Buffer,
-  format: 'docx' | 'xlsx' | 'pdf'
+  format: string,
+  originalName?: string
 ): Promise<string | null> {
-  switch (format) {
-    case 'docx':
-      return await extractTextFromDOCX(buffer)
+  // Normalize format to lowercase
+  const normalizedFormat = format.toLowerCase()
 
-    case 'xlsx':
-      return await extractTextFromXLSX(buffer)
-
-    case 'pdf':
-      return await extractTextFromPDF(buffer)
-
-    default:
-      console.warn('⚠️ Unknown format for text extraction:', format)
-      return null
+  // Handle PDF
+  if (normalizedFormat === 'pdf' || normalizedFormat === 'application/pdf') {
+    return await extractTextFromPDF(buffer)
   }
+
+  // Handle DOCX
+  if (
+    normalizedFormat === 'docx' ||
+    normalizedFormat === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ) {
+    return await extractTextFromDOCX(buffer)
+  }
+
+  // Handle XLSX/XLS
+  if (
+    normalizedFormat === 'xlsx' ||
+    normalizedFormat === 'xls' ||
+    normalizedFormat === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    normalizedFormat === 'application/vnd.ms-excel'
+  ) {
+    return await extractTextFromXLSX(buffer)
+  }
+
+  // Handle Text/CSV
+  if (
+    normalizedFormat === 'txt' ||
+    normalizedFormat === 'csv' ||
+    normalizedFormat === 'text/plain' ||
+    normalizedFormat === 'text/csv'
+  ) {
+    return buffer.toString('utf-8')
+  }
+
+  console.warn('⚠️ Unknown format for text extraction:', format)
+  return null
 }

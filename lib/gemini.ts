@@ -49,14 +49,14 @@ export async function* streamChatResponse(
 You have access to ${entities.length} extracted and verified entities:
 
 ${entities
-  .map((entity) => {
-    const attrs = entity.attributes as Record<string, any>
-    const attrsText = Object.entries(attrs)
-      .map(([key, value]) => `  • ${key}: ${value}`)
-      .join('\n')
-    return `[${entity.entity_type.toUpperCase()}] ${entity.entity_name}\n${attrsText}`
-  })
-  .join('\n\n')}
+          .map((entity) => {
+            const attrs = entity.attributes as Record<string, any>
+            const attrsText = Object.entries(attrs)
+              .map(([key, value]) => `  • ${key}: ${value}`)
+              .join('\n')
+            return `[${entity.entity_type.toUpperCase()}] ${entity.entity_name}\n${attrsText}`
+          })
+          .join('\n\n')}
 
 ═══════════════════════════════════════════════════════════════
 
@@ -86,6 +86,7 @@ ${documentContext.compiledContent ? `CURRENT COMPILED VERSION:\n${documentContex
 
 NEVER EVER invent, guess, hallucinate, or make up data.
 ONLY use data you ACTUALLY found in:
+  ✓ The STRUCTURED DATA REGISTRY provided in this prompt (HIGHEST PRIORITY)
   ✓ File Search results from uploaded documents
   ✓ Explicit statements in chat history
   ✓ Previous messages in this conversation
@@ -134,7 +135,8 @@ STEP 1: CHECK STRUCTURED DATA REGISTRY FIRST
   ✓ Look in the "STRUCTURED DATA REGISTRY" section above
   ✓ Search for matching entity_name (person/company names)
   ✓ Check attributes for the exact field you need
-  ✓ If found → USE IT DIRECTLY, skip steps 2 & 3
+  ✓ If found → USE IT DIRECTLY to fill the field. Do not ask for confirmation.
+  ✓ This registry contains the "known data" for the user/company.
 
 STEP 2: SEARCH CHAT HISTORY
   ✓ Look through conversation messages
@@ -155,32 +157,26 @@ Example for person "Mario Rossi":
 
 REMEMBER: Structured Data Registry = HIGHEST PRIORITY SOURCE
 
-█ RULE 4: STRUCTURED OUTPUT █
+█ RULE 4: STRUCTURED OUTPUT & INTERACTION █
 
 Your response MUST have this structure:
 
-[COMPLETE DOCUMENT TEXT WITH ALL FIELDS ADDRESSED]
+[COMPLETE DOCUMENT TEXT WITH FILLED FIELDS]
 
 --- END OF DOCUMENT ---
 
 📊 COMPILATION REPORT:
-- Total sections processed: X
-- Fields filled with found data: Y
-- Fields left blank (no data found): Z
-- Critical data sources: [chat history on DATE / document: "filename.pdf"]
+- Fields filled: Y
+- Fields missing: Z
 
-⚠️ MISSING DATA (if any):
-[List any important fields you couldn't fill]
+⚠️ MISSING DATA & QUESTIONS:
+[List specific data you could not find. Example: "I could not find the birth date for Mario Rossi."]
+[Ask the user to provide this information so you can complete the document.]
 
-═══════════════════════════════════════════════════════════════
-
-IMMEDIATE ACTION PROTOCOL:
-1. User says "compile document with X data"
-2. You IMMEDIATELY search for X in documents + chat
-3. You fill the ENTIRE document start-to-finish
-4. You provide COMPLETE output + report
-
-NO CONFIRMATIONS. NO QUESTIONS. JUST ACCURATE, COMPLETE RESULTS.
+INTERACTION GUIDELINES:
+1. If you found everything -> Great! Provide the final document.
+2. If data is missing -> Provide the draft with {{placeholders}} and ASK the user for the missing details.
+3. DO NOT force a completion if you lack critical data. It is better to ask.
 
 START NOW.`
 
@@ -188,10 +184,12 @@ START NOW.`
         { role: 'assistant' as const, content: systemPrompt },
         ...messages,
       ]
+      console.log('🤖 System Prompt generated with entities length:', entitiesText.length)
     }
 
     // If file search stores are available, use them for RAG
     if (fileSearchStoreNames && fileSearchStoreNames.length > 0) {
+      console.log('🔎 Using File Search with stores:', fileSearchStoreNames)
       // Stream from File Search with RAG
       let citations: any = null
       for await (const chunk of streamChatWithFileSearch(contextualMessages, fileSearchStoreNames)) {

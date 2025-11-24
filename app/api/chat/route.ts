@@ -52,6 +52,14 @@ export async function POST(req: NextRequest) {
       .eq('notebook_id', notebookId)
       .order('created_at', { ascending: false })
 
+    console.log('🔍 Chat Request Debug:')
+    console.log('- Notebook ID:', notebookId)
+    console.log('- File Search Stores:', fileSearchStoreNames)
+    console.log('- Entities found:', entities?.length || 0)
+    if (entities && entities.length > 0) {
+      console.log('- First entity:', JSON.stringify(entities[0], null, 2))
+    }
+
     // Create a ReadableStream that will stream the response
     const readable = new ReadableStream({
       async start(controller) {

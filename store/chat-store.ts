@@ -12,10 +12,13 @@ interface ChatStore {
   isStreaming: boolean
   error: string | null
   documentSession: DocumentSession | null
+  editingMessageId: string | null
 
   setMessages: (messages: Message[]) => void
   addMessage: (message: Message) => void
   updateLastMessage: (content: string) => void
+  updateMessage: (messageId: string, content: string) => void
+  deleteMessage: (messageId: string) => void
   setLoading: (loading: boolean) => void
   setStreaming: (streaming: boolean) => void
   setError: (error: string | null) => void
@@ -24,6 +27,7 @@ interface ChatStore {
   setDocumentSession: (session: DocumentSession | null) => void
   updateDocumentSessionContent: (compiledContent: string) => void
   clearDocumentSession: () => void
+  setEditingMessageId: (messageId: string | null) => void
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -32,6 +36,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   isStreaming: false,
   error: null,
   documentSession: null,
+  editingMessageId: null,
 
   setMessages: (messages) => set({ messages }),
   addMessage: (message) =>
@@ -49,6 +54,16 @@ export const useChatStore = create<ChatStore>((set) => ({
       }
       return { messages: newMessages }
     }),
+  updateMessage: (messageId, content) =>
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg.id === messageId ? { ...msg, content } : msg
+      ),
+    })),
+  deleteMessage: (messageId) =>
+    set((state) => ({
+      messages: state.messages.filter((msg) => msg.id !== messageId),
+    })),
   setLoading: (loading) => set({ isLoading: loading }),
   setStreaming: (streaming) => set({ isStreaming: streaming }),
   setError: (error) => set({ error }),
@@ -67,4 +82,5 @@ export const useChatStore = create<ChatStore>((set) => ({
       }
     }),
   clearDocumentSession: () => set({ documentSession: null }),
+  setEditingMessageId: (messageId) => set({ editingMessageId: messageId }),
 }))

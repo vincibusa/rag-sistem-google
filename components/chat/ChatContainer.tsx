@@ -10,6 +10,7 @@ import { Sparkles, FileText, Upload, Download, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import type { Tables } from '@/lib/database.types'
+import { useFilesStore } from '@/store/files-store'
 
 type DocumentSession = Tables<'document_sessions'>
 
@@ -36,6 +37,30 @@ export function ChatContainer({
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const { files } = useFilesStore()
+
+  // Function to get file attachments from file URIs
+  const getFileAttachments = (fileUris: string[]) => {
+    return fileUris.map(uri => {
+      // Find the file in the files store that matches the URI
+      const file = files.find(f => f.gemini_uri === uri)
+      if (file) {
+        return {
+          uri: file.gemini_uri,
+          name: file.name,
+          mimeType: file.mime_type,
+          sizeBytes: file.size_bytes
+        }
+      }
+      // If file not found in store, create a basic attachment object
+      return {
+        uri,
+        name: uri.split('/').pop() || 'Unknown file',
+        mimeType: 'application/octet-stream',
+        sizeBytes: 0
+      }
+    })
+  }
 
   // Auto-scroll to bottom when new messages appear
   useEffect(() => {
@@ -144,7 +169,10 @@ export function ChatContainer({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <ChatMessage message={message} />
+                    <ChatMessage
+                      message={message}
+                      fileAttachments={message.fileUris && message.fileUris.length > 0 ? getFileAttachments(message.fileUris) : undefined}
+                    />
                   </motion.div>
                 ))}
               </AnimatePresence>
