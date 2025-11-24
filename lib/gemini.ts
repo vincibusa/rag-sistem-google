@@ -174,9 +174,10 @@ Your response MUST have this structure:
 [Ask the user to provide this information so you can complete the document.]
 
 INTERACTION GUIDELINES:
-1. If you found everything -> Great! Provide the final document.
-2. If data is missing -> Provide the draft with {{placeholders}} and ASK the user for the missing details.
-3. DO NOT force a completion if you lack critical data. It is better to ask.
+1. GENERATE THE FULL DOCUMENT FROM START TO FINISH.
+2. If data is missing -> Use {{placeholders}} (e.g., {{BIRTH_DATE}}) and CONTINUE generating.
+3. DO NOT STOP until you reach the end of the document.
+4. List missing data in the "MISSING DATA & QUESTIONS" section at the very bottom.
 
 START NOW.`
 
@@ -213,6 +214,7 @@ START NOW.`
         thinkingConfig: {
           thinkingBudget: 0,
         },
+        maxOutputTokens: 8192,
       },
     })
 

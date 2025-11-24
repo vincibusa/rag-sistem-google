@@ -161,6 +161,7 @@ export async function* streamChatWithFileSearch(
         thinkingConfig: {
           thinkingBudget: 0,
         },
+        maxOutputTokens: 8192,
       }
     })
 
