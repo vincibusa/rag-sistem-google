@@ -2,6 +2,9 @@
 
 import React from 'react'
 import { useChatStore } from '@/store/chat-store'
+import { useAuth } from '@/lib/auth-context'
+import { downloadCompiledDocument } from '@/app/actions/document-compilation'
+import { toast } from 'sonner'
 import {
   Eye,
   EyeOff,
@@ -11,6 +14,7 @@ import {
   PanelRight,
   Minus,
   Plus,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,11 +27,13 @@ import {
 export function LayoutControls() {
   const {
     documentPreview,
+    documentSession,
     setDocumentPreviewVisible,
     setPreviewMode,
     setSplitRatio,
     setPreviewCollapsed,
   } = useChatStore()
+  const { user, accessToken } = useAuth()
 
   const handleToggleVisibility = () => {
     setDocumentPreviewVisible(!documentPreview.isVisible)
@@ -51,9 +57,57 @@ export function LayoutControls() {
     setSplitRatio(newRatio)
   }
 
+  const handleDownload = async () => {
+    if (!documentSession || !user || !accessToken) {
+      toast.error('Cannot download: missing document session')
+      return
+    }
+
+    try {
+      toast.loading('Generating document...', { id: 'download-doc' })
+      const { fileName, fileData, mimeType } = await downloadCompiledDocument(
+        user.id,
+        accessToken,
+        documentSession.id
+      )
+
+      // Create blob and trigger download
+      const blob = new Blob([fileData as any], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
+
+      toast.success('Document downloaded!', { id: 'download-doc' })
+    } catch (error) {
+      console.error('Error downloading document:', error)
+      toast.error('Failed to download document', { id: 'download-doc' })
+    }
+  }
+
   return (
     <TooltipProvider>
       <div className="flex items-center gap-1">
+        {/* Download button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDownload}
+              className="h-8 w-8 p-0"
+              disabled={!documentSession}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            Download Compiled Document
+          </TooltipContent>
+        </Tooltip>
+
         {/* Preview mode toggle */}
         <Tooltip>
           <TooltipTrigger asChild>
