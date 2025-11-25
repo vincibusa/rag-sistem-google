@@ -65,11 +65,47 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         try {
           const encoder = new TextEncoder()
+          let compiledContent = ''
+
           for await (const chunk of streamChatResponse(messages, fileSearchStoreNames || [], documentContext, entities || [])) {
             if (typeof chunk === 'string') {
+              compiledContent += chunk
               controller.enqueue(encoder.encode(chunk))
+
+              // Update document session with real-time compilation progress
+              if (documentSessionId && compiledContent.length > 0) {
+                try {
+                  await supabase
+                    .from('document_sessions')
+                    .update({
+                      current_compiled_content: compiledContent,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', documentSessionId)
+                } catch (updateError) {
+                  console.error('Error updating document session:', updateError)
+                  // Continue streaming even if update fails
+                }
+              }
             }
           }
+
+          // Final update with completed content
+          if (documentSessionId && compiledContent.length > 0) {
+            try {
+              await supabase
+                .from('document_sessions')
+                .update({
+                  compiled_content: compiledContent,
+                  current_compiled_content: compiledContent,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', documentSessionId)
+            } catch (updateError) {
+              console.error('Error finalizing document session:', updateError)
+            }
+          }
+
           controller.close()
         } catch (error) {
           controller.error(error)

@@ -167,10 +167,17 @@ export function Dashboard() {
   const loadDocumentSession = async () => {
     if (!currentNotebookId || !user || !accessToken) return
     try {
+      console.log('🔍 Dashboard - Loading document session for notebook:', currentNotebookId)
       const session = await getActiveDocumentSession(user.id, accessToken, currentNotebookId)
+      console.log('🔍 Dashboard - Document session loaded:', {
+        hasSession: !!session,
+        sessionId: session?.id,
+        fileName: session?.original_file_name,
+        status: session?.status
+      })
       setDocumentSession(session)
     } catch (error) {
-      console.error('Error loading document session:', error)
+      console.error('🔍 Dashboard - Error loading document session:', error)
       // Don't show error toast for this - it's ok if there's no active session
     }
   }
@@ -269,6 +276,11 @@ export function Dashboard() {
         formData.append('file', file)
 
         const session = await uploadDocumentForCompilation(user.id, accessToken, currentNotebookId, formData)
+        console.log('🔍 Dashboard - Document uploaded and session created:', {
+          sessionId: session.id,
+          fileName: session.original_file_name,
+          status: session.status
+        })
         setDocumentSession(session)
         toast.success('Document loaded! Start asking me to fill it out.', { id: 'upload-doc' })
       } catch (error) {
@@ -420,34 +432,10 @@ export function Dashboard() {
         }
       }
 
-      // Auto-continuation for document compilation
-      // If there's an active document session and the response still has placeholders
-      if (documentSession && containsPlaceholders(assistantContent)) {
-        const placeholderCount = countPlaceholders(assistantContent)
-
-        // Limit auto-continuation to 3 times to prevent infinite loops
-        if (autoContinuationCountRef.current < 3) {
-          autoContinuationCountRef.current += 1
-          console.log(`🔄 Auto-continuation ${autoContinuationCountRef.current}/3: ${placeholderCount} placeholders remaining`)
-
-          // Wait 2 seconds before auto-continuing (give user time to read)
-          autoContinuationTimerRef.current = setTimeout(() => {
-            console.log('🔄 Triggering auto-continuation...')
-            handleSendMessage('Continua a compilare i campi rimanenti del documento. Non fermarti, compila TUTTO fino alla fine.')
-          }, 2000)
-        } else {
-          // Max attempts reached
-          console.log('⚠️ Max auto-continuation attempts reached')
-          toast.info(`Documento compilato con ${placeholderCount} campi ancora vuoti. Puoi chiedere di continuare se necessario.`)
-          autoContinuationCountRef.current = 0 // Reset for next document
-        }
-      } else {
-        // Document complete or no document session
-        autoContinuationCountRef.current = 0 // Reset counter
-        if (documentSession && !containsPlaceholders(assistantContent)) {
-          // Document fully compiled!
-          toast.success('Documento completamente compilato! Puoi scaricarlo ora.')
-        }
+      // Check if document is fully compiled
+      if (documentSession && !containsPlaceholders(assistantContent)) {
+        // Document fully compiled!
+        toast.success('Documento completamente compilato! Puoi scaricarlo ora.')
       }
     } catch (error) {
       console.error('🔴 Error sending message:', error)
