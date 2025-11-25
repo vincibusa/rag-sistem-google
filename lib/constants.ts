@@ -12,8 +12,8 @@ export const SUPPORTED_FILE_TYPES = [
 export const SUPPORTED_EXTENSIONS = ['.pdf', '.txt', '.csv', '.docx', '.xlsx', '.xls', '.doc']
 
 // Gemini API constants
-export const GEMINI_MODEL = 'gemini-2.5-flash-lite'
-export const GEMINI_VISION_MODEL = 'gemini-2.5-flash-lite'
+export const GEMINI_MODEL = 'gemini-2.5-flash'
+export const GEMINI_VISION_MODEL = 'gemini-2.5-flash'
 
 // UI Constants
 export const TOAST_DURATION = 3000
