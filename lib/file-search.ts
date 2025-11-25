@@ -146,8 +146,8 @@ export async function* streamChatWithFileSearch(
       .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
       .join('\n\n')
 
-    // Generate content with File Search tool
-    const response = await client.models.generateContent({
+    // Generate content with File Search tool using streaming
+    const stream = await client.models.generateContentStream({
       model: GEMINI_MODEL,
       contents: prompt,
       config: {
@@ -165,14 +165,17 @@ export async function* streamChatWithFileSearch(
       }
     })
 
-    // For now, return the full response
-    // TODO: Implement proper streaming once SDK supports it
-    if (response.text) {
-      yield response.text
+    // Yield chunks as they arrive from Gemini for real-time streaming
+    let lastChunk: any = null
+    for await (const chunk of stream) {
+      if (chunk.text) {
+        yield chunk.text
+      }
+      lastChunk = chunk
     }
 
-    // Return grounding metadata for citations
-    return response.candidates?.[0]?.groundingMetadata
+    // Return grounding metadata for citations from final chunk
+    return lastChunk?.candidates?.[0]?.groundingMetadata
   } catch (error) {
     console.error('Error querying with File Search:', error)
 

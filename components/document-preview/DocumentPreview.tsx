@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { useChatStore } from '@/store/chat-store'
+import { useDocumentPreviewStream } from '@/hooks/useDocumentPreviewStream'
 import { TextPreview } from './TextPreview'
 import { VisualPreview } from './VisualPreview'
 import { LayoutControls } from './LayoutControls'
@@ -9,6 +10,9 @@ import { cn } from '@/lib/utils'
 
 export function DocumentPreview() {
   const { documentPreview } = useChatStore()
+
+  // Initialize real-time document preview stream
+  useDocumentPreviewStream()
 
   console.log('🔍 DocumentPreview - State:', {
     isVisible: documentPreview.isVisible,

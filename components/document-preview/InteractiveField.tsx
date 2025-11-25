@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useChatStore } from '@/store/chat-store'
+import { useUserEditSync } from '@/hooks/useUserEditSync'
 import { Edit2, MessageSquare, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,6 +14,7 @@ interface InteractiveFieldProps {
   originalContent: string
   compiledContent: string
   isEditable: boolean
+  isSection?: boolean
 }
 
 export function InteractiveField({
@@ -21,6 +23,7 @@ export function InteractiveField({
   originalContent,
   compiledContent,
   isEditable,
+  isSection = false,
 }: InteractiveFieldProps) {
   const {
     documentPreview,
@@ -29,6 +32,7 @@ export function InteractiveField({
     removeUserEdit,
     addComment,
   } = useChatStore()
+  const { syncUserEdit } = useUserEditSync()
 
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(compiledContent)
@@ -39,9 +43,11 @@ export function InteractiveField({
   const displayContent = userEdit || compiledContent || originalContent
   const isActive = documentPreview.activeField === fieldId
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (editContent.trim() && editContent !== compiledContent) {
       updateUserEdit(fieldId, editContent)
+      // Sync with backend
+      await syncUserEdit(fieldId, editContent, 'update')
     }
     setIsEditing(false)
   }
@@ -71,50 +77,60 @@ export function InteractiveField({
   return (
     <div
       className={cn(
-        "p-4 border rounded-lg transition-all duration-200 cursor-pointer",
-        isActive
-          ? "border-primary bg-primary/5"
-          : "border-border hover:border-primary/50 hover:bg-muted/50",
-        userEdit && "border-green-500 bg-green-50/50"
+        "p-4 border rounded-lg transition-all duration-200",
+        isSection
+          ? "bg-muted/30 border-muted-foreground/20 cursor-default"
+          : cn(
+              "cursor-pointer",
+              isActive
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50 hover:bg-muted/50",
+              userEdit && "border-green-500 bg-green-50/50"
+            )
       )}
-      onClick={handleFieldClick}
+      onClick={isSection ? undefined : handleFieldClick}
     >
       {/* Field header */}
       <div className="flex items-center justify-between mb-3">
-        <h4 className="font-medium text-sm text-muted-foreground">
+        <h4 className={cn(
+          "font-medium text-sm",
+          isSection ? "text-foreground" : "text-muted-foreground"
+        )}>
           {fieldLabel}
         </h4>
-        <div className="flex items-center gap-1">
-          {userEdit && (
-            <div className="text-xs text-green-600 font-medium px-2 py-1 bg-green-100 rounded-full">
-              Edited
-            </div>
-          )}
-          {isEditable && (
+        {!isSection && (
+          <div className="flex items-center gap-1">
+            {userEdit && (
+              <div className="text-xs text-green-600 font-medium px-2 py-1 bg-green-100 rounded-full">
+                Edited
+              </div>
+            )}
+            {isEditable && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsEditing(true)
+                }}
+                className="h-6 w-6 p-0"
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
               onClick={(e) => {
                 e.stopPropagation()
-                setIsEditing(true)
+                setShowCommentInput(!showCommentInput)
               }}
               className="h-6 w-6 p-0"
             >
-              <Edit2 className="h-3 w-3" />
+              <MessageSquare className="h-3 w-3" />
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowCommentInput(!showCommentInput)
-            }}
-            className="h-6 w-6 p-0"
-          >
-            <MessageSquare className="h-3 w-3" />
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Field content */}

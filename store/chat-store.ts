@@ -47,12 +47,14 @@ interface ChatStore {
   clearMessages: () => void
   setDocumentSession: (session: DocumentSession | null) => void
   updateDocumentSessionContent: (compiledContent: string) => void
+  updateDocumentSessionRealTime: (updates: Partial<DocumentSession>) => void
   clearDocumentSession: () => void
   setEditingMessageId: (messageId: string | null) => void
 
   // Document Preview Actions
   setDocumentPreviewVisible: (visible: boolean) => void
   setPreviewDocument: (document: DocumentSession | null) => void
+  updatePreviewDocument: (updates: Partial<DocumentSession>) => void
   setPreviewMode: (mode: 'text' | 'visual') => void
   setSplitRatio: (ratio: number) => void
   setPreviewCollapsed: (collapsed: boolean) => void
@@ -134,6 +136,17 @@ export const useChatStore = create<ChatStore>((set) => ({
         },
       }
     }),
+  updateDocumentSessionRealTime: (updates) =>
+    set((state) => {
+      if (!state.documentSession) return state
+      return {
+        documentSession: {
+          ...state.documentSession,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        },
+      }
+    }),
   clearDocumentSession: () => set({ documentSession: null }),
   setEditingMessageId: (messageId) => set({ editingMessageId: messageId }),
 
@@ -160,6 +173,20 @@ export const useChatStore = create<ChatStore>((set) => ({
       },
     }))
   },
+  updatePreviewDocument: (updates) =>
+    set((state) => {
+      if (!state.documentPreview.currentDocument) return state
+      return {
+        documentPreview: {
+          ...state.documentPreview,
+          currentDocument: {
+            ...state.documentPreview.currentDocument,
+            ...updates,
+            updated_at: new Date().toISOString(),
+          },
+        },
+      }
+    }),
   setPreviewMode: (mode) =>
     set((state) => ({
       documentPreview: {

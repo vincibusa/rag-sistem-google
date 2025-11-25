@@ -67,39 +67,54 @@ export type Database = {
       }
       document_sessions: {
         Row: {
+          comments: Json | null
           compiled_content: string | null
           created_at: string | null
+          current_compiled_content: string | null
+          document_structure: Json | null
           extracted_text: string
+          field_completion_status: Json | null
           file_type: string
           id: string
           notebook_id: string
           original_file_name: string
           status: string
           updated_at: string | null
+          user_edits: Json | null
           user_id: string
         }
         Insert: {
+          comments?: Json | null
           compiled_content?: string | null
           created_at?: string | null
+          current_compiled_content?: string | null
+          document_structure?: Json | null
           extracted_text: string
+          field_completion_status?: Json | null
           file_type: string
           id?: string
           notebook_id: string
           original_file_name: string
           status?: string
           updated_at?: string | null
+          user_edits?: Json | null
           user_id: string
         }
         Update: {
+          comments?: Json | null
           compiled_content?: string | null
           created_at?: string | null
+          current_compiled_content?: string | null
+          document_structure?: Json | null
           extracted_text?: string
+          field_completion_status?: Json | null
           file_type?: string
           id?: string
           notebook_id?: string
           original_file_name?: string
           status?: string
           updated_at?: string | null
+          user_edits?: Json | null
           user_id?: string
         }
         Relationships: [

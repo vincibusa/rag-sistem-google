@@ -67,13 +67,13 @@ export async function uploadDocumentForCompilation(
       extractedText = await extractTextFromXLSX(buffer)
     } else if (file.type === 'application/pdf') {
       // PDF - extract text (we'll handle PDF compilation differently)
-      extractedText = await extractTextFromDocument(buffer, file.type, file.name)
+      extractedText = (await extractTextFromDocument(buffer, file.type, file.name)) || ''
     } else if (file.type === 'text/plain' || file.type === 'text/csv') {
       // Plain text or CSV
       extractedText = buffer.toString('utf-8')
     } else {
       // Try generic extraction
-      extractedText = await extractTextFromDocument(buffer, file.type, file.name)
+      extractedText = (await extractTextFromDocument(buffer, file.type, file.name)) || ''
     }
 
     if (!extractedText || extractedText.trim().length === 0) {

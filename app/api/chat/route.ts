@@ -66,11 +66,11 @@ export async function POST(req: NextRequest) {
         try {
           const encoder = new TextEncoder()
           let compiledContent = ''
+          let lastStatusUpdate = ''
 
           for await (const chunk of streamChatResponse(messages, fileSearchStoreNames || [], documentContext, entities || [])) {
             if (typeof chunk === 'string') {
               compiledContent += chunk
-              controller.enqueue(encoder.encode(chunk))
 
               // Update document session with real-time compilation progress
               if (documentSessionId && compiledContent.length > 0) {
@@ -86,6 +86,13 @@ export async function POST(req: NextRequest) {
                   console.error('Error updating document session:', updateError)
                   // Continue streaming even if update fails
                 }
+              }
+
+              // Extract status updates from compiled content for chat display
+              const statusUpdate = extractStatusUpdate(compiledContent, lastStatusUpdate)
+              if (statusUpdate && statusUpdate !== lastStatusUpdate) {
+                lastStatusUpdate = statusUpdate
+                controller.enqueue(encoder.encode(statusUpdate))
               }
             }
           }
@@ -106,6 +113,8 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          // Send final status message
+          controller.enqueue(encoder.encode('✅ Document compilation completed. Check the preview for the full compiled content.'))
           controller.close()
         } catch (error) {
           controller.error(error)
@@ -127,4 +136,61 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Extract status updates from compiled content for chat display
+ * Returns status-only messages like "Processing field X..." instead of full content
+ */
+function extractStatusUpdate(compiledContent: string, lastStatusUpdate: string): string | null {
+  // Look for progress indicators in the compiled content
+  const progressPatterns = [
+    /Processed (\d+)\/(\d+) fields/, // "Processed 10/50 fields"
+    /Compiling field:?\s*([^\n]+)/i, // "Compiling field: Personal Information"
+    /Processing section:?\s*([^\n]+)/i, // "Processing section: Header"
+    /Filling field:?\s*([^\n]+)/i, // "Filling field: Name"
+    /Working on:?\s*([^\n]+)/i, // "Working on: Address section"
+  ]
+
+  // Look for completion indicators
+  const completionPatterns = [
+    /--- END OF DOCUMENT ---/,
+    /COMPILATION REPORT/,
+    /Fields filled: (\d+)/,
+    /Fields missing: (\d+)/,
+  ]
+
+  // Check for progress updates
+  for (const pattern of progressPatterns) {
+    const match = compiledContent.match(pattern)
+    if (match) {
+      const status = match[0].trim()
+      if (status !== lastStatusUpdate) {
+        return `🔄 ${status}`
+      }
+    }
+  }
+
+  // Check for completion updates
+  for (const pattern of completionPatterns) {
+    const match = compiledContent.match(pattern)
+    if (match) {
+      const status = match[0].trim()
+      if (status !== lastStatusUpdate) {
+        return `✅ ${status}`
+      }
+    }
+  }
+
+  // If no specific patterns found, but content has grown significantly, provide generic update
+  const contentLength = compiledContent.length
+  if (contentLength > 500 && !lastStatusUpdate.includes('Processing')) {
+    return '🔄 Processing document structure...'
+  }
+
+  if (contentLength > 1000 && !lastStatusUpdate.includes('Compiling')) {
+    return '🔄 Compiling document fields...'
+  }
+
+  return null
 }
