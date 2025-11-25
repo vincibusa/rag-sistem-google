@@ -369,6 +369,8 @@ export function Dashboard() {
 
       // Stream assistant response
       let assistantContent = ''
+      let documentContent = ''  // Accumulates document content only
+      let progressMessage = ''  // Tracks the latest progress message
 
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -408,6 +410,7 @@ export function Dashboard() {
         file_uris: fileUris,
         created_at: new Date().toISOString(),
         notebook_id: currentNotebookId,
+        document_session_id: documentSession?.id || null,
       }
 
       addMessage(assistantMessage)
@@ -415,20 +418,63 @@ export function Dashboard() {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        assistantContent += decoder.decode(value, { stream: true })
-        // Use updateLastMessage instead of addMessage to avoid re-render spam
-        updateLastMessage(assistantContent)
+
+        const chunk = decoder.decode(value, { stream: true })
+
+        // Separate progress messages from document content
+        if (chunk.includes('[PROGRESS]')) {
+          const parts = chunk.split('[PROGRESS]')
+
+          // Add any content before the first [PROGRESS] marker
+          if (parts[0]) {
+            documentContent += parts[0]
+          }
+
+          // Process each progress message
+          for (let i = 1; i < parts.length; i++) {
+            const lines = parts[i].split('\n')
+            const progressLine = lines[0]
+            if (progressLine) {
+              progressMessage = progressLine
+              // Update chat with progress message only
+              updateLastMessage(progressMessage)
+            }
+
+            // Add any content after the progress message
+            if (lines.length > 1) {
+              documentContent += lines.slice(1).join('\n')
+            }
+          }
+        } else {
+          // Regular document content
+          documentContent += chunk
+        }
       }
 
-      // Save compiled content to database if there's a document session
-      if (documentSession && assistantContent) {
-        try {
-          await updateCompiledDocument(user.id, accessToken, documentSession.id, assistantContent)
-          updateDocumentSessionContent(assistantContent) // Update store as well
-          console.log('✅ Compiled content saved to database')
-        } catch (error) {
-          console.error('⚠️ Error saving compiled content:', error)
-          // Don't throw - continue with auto-continuation even if save fails
+      // Determine final content based on whether we have a document session
+      if (documentSession) {
+        // For document compilation, use the document content (without progress messages)
+        assistantContent = documentContent.trim()
+
+        // Save compiled document content to database
+        if (assistantContent) {
+          try {
+            await updateCompiledDocument(user.id, accessToken, documentSession.id, assistantContent)
+            updateDocumentSessionContent(assistantContent)
+            console.log('✅ Compiled content saved to database')
+          } catch (error) {
+            console.error('⚠️ Error saving compiled content:', error)
+          }
+        }
+
+        // Update chat with final progress message (or default completion message)
+        const finalMessage = progressMessage || '✅ Documento compilato con successo.'
+        updateLastMessage(finalMessage)
+      } else {
+        // For regular chat (no document session), use all content
+        assistantContent = documentContent + progressMessage
+        if (assistantContent.trim()) {
+          updateLastMessage(assistantContent)
         }
       }
 

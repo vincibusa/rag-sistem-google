@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
               const statusUpdate = extractStatusUpdate(compiledContent, lastStatusUpdate)
               if (statusUpdate && statusUpdate !== lastStatusUpdate) {
                 lastStatusUpdate = statusUpdate
-                controller.enqueue(encoder.encode(statusUpdate))
+                controller.enqueue(encoder.encode(`[PROGRESS]${statusUpdate}\n`))
               }
             }
           }
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Send final status message
-          controller.enqueue(encoder.encode('✅ Document compilation completed. Check the preview for the full compiled content.'))
+          controller.enqueue(encoder.encode('[PROGRESS]✅ Document compilation completed. Check the preview for the full compiled content.\n'))
           controller.close()
         } catch (error) {
           controller.error(error)
