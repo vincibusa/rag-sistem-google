@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { Message } from '@/lib/types'
+import { mergeUserEditsWithCompiledContent } from '@/lib/document-merge'
 import type { Tables } from '@/lib/database.types'
 
 type DocumentSession = Tables<'document_sessions'>
@@ -24,6 +25,9 @@ interface DocumentPreviewState {
   activeField: string | null
   userEdits: Map<string, string>
   comments: Comment[]
+  // Merged content cache with version-based invalidation
+  mergedContent: string | null
+  mergedContentVersion: number
 }
 
 interface ChatStore {
@@ -66,9 +70,14 @@ interface ChatStore {
   updateComment: (commentId: string, updates: Partial<Comment>) => void
   deleteComment: (commentId: string) => void
   resolveComment: (commentId: string) => void
+
+  // Merged content methods
+  getMergedContent: () => string | null
+  invalidateMergedContent: () => void
+  getFieldMergedContent: (fieldId: string) => string | null
 }
 
-export const useChatStore = create<ChatStore>((set) => ({
+export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   isLoading: false,
   isStreaming: false,
@@ -84,6 +93,8 @@ export const useChatStore = create<ChatStore>((set) => ({
     activeField: null,
     userEdits: new Map(),
     comments: [],
+    mergedContent: null,
+    mergedContentVersion: 0,
   },
 
   setMessages: (messages) => set({ messages }),
@@ -184,6 +195,8 @@ export const useChatStore = create<ChatStore>((set) => ({
             ...updates,
             updated_at: new Date().toISOString(),
           },
+          mergedContent: null, // ← Invalida cache quando contenuto compilato cambia
+          mergedContentVersion: state.documentPreview.mergedContentVersion + 1,
         },
       }
     }),
@@ -223,6 +236,8 @@ export const useChatStore = create<ChatStore>((set) => ({
         documentPreview: {
           ...state.documentPreview,
           userEdits: newUserEdits,
+          mergedContent: null, // ← Invalida cache
+          mergedContentVersion: state.documentPreview.mergedContentVersion + 1,
         },
       }
     }),
@@ -234,6 +249,8 @@ export const useChatStore = create<ChatStore>((set) => ({
         documentPreview: {
           ...state.documentPreview,
           userEdits: newUserEdits,
+          mergedContent: null, // ← Invalida cache
+          mergedContentVersion: state.documentPreview.mergedContentVersion + 1,
         },
       }
     }),
@@ -285,4 +302,72 @@ export const useChatStore = create<ChatStore>((set) => ({
         ),
       },
     })),
+
+  // Merged content methods
+  getMergedContent: () => {
+    const state = get()
+    const { currentDocument, userEdits, mergedContent } = state.documentPreview
+
+    if (!currentDocument) return null
+
+    const baseContent = currentDocument.current_compiled_content || currentDocument.compiled_content
+    if (!baseContent) return null
+
+    // If no user edits, return compiled content directly
+    if (userEdits.size === 0) {
+      return baseContent
+    }
+
+    // If cache is valid, return cached
+    if (mergedContent !== null) {
+      console.log('✅ Merged content cache hit')
+      return mergedContent
+    }
+
+    // Cache miss: compute merge fresh (no set() to avoid render phase violation)
+    const userEditsObj = Object.fromEntries(userEdits)
+    const documentStructure = currentDocument.document_structure
+
+    console.log('🔄 Computing merged content (cache miss)...')
+    const mergeResult = mergeUserEditsWithCompiledContent(baseContent, userEditsObj, documentStructure)
+
+    console.log(`✅ Merged content computed: ${mergeResult.appliedEdits}/${mergeResult.totalFields} edits applied`)
+
+    // Return computed content without saving to cache in this getter
+    // This prevents React render phase violations
+    return mergeResult.mergedContent
+  },
+
+  invalidateMergedContent: () => {
+    set((state) => ({
+      documentPreview: {
+        ...state.documentPreview,
+        mergedContent: null,
+        mergedContentVersion: state.documentPreview.mergedContentVersion + 1,
+      },
+    }))
+    console.log('🔄 Merged content cache invalidated')
+  },
+
+  getFieldMergedContent: (fieldId: string) => {
+    const state = get()
+    const userEdit = state.documentPreview.userEdits.get(fieldId)
+
+    if (userEdit) return userEdit
+
+    // Fallback: try to find in parsed structure
+    const mergedContent = state.getMergedContent()
+    if (!mergedContent) return null
+
+    // Simple search in merged content for the field value
+    // This is a basic implementation; more sophisticated parsing could be added
+    const document = state.documentPreview.currentDocument
+    if (document?.document_structure) {
+      const structure = (document.document_structure as any)
+      const field = structure.fields?.find((f: any) => f.id === fieldId)
+      return field?.compiledContent || null
+    }
+
+    return null
+  },
 }))

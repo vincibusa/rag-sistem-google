@@ -5,7 +5,7 @@ import { useChatStore } from '@/store/chat-store'
 import { InteractiveField } from './InteractiveField'
 
 export function TextPreview() {
-  const { documentPreview } = useChatStore()
+  const { documentPreview, getMergedContent } = useChatStore()
   const document = documentPreview.currentDocument
 
   if (!document) {
@@ -16,18 +16,19 @@ export function TextPreview() {
     )
   }
 
-  // Parse document structure or use real-time compiled content
-  const documentStructure = document.document_structure as any
+  // Use merged content (compiled + user edits) for both structure parsing and display
+  const mergedContent = getMergedContent()
   const extractedText = document.extracted_text
-  const currentCompiledContent = document.current_compiled_content || document.compiled_content
 
-  // If no document structure exists but we have compiled content, try to parse it
-  const parsedStructure = documentStructure || parseDocumentStructure(currentCompiledContent || extractedText)
+  // Parse document structure from merged content
+  const documentStructure = document.document_structure as any
+  const parsedStructure = documentStructure || parseDocumentStructure(mergedContent || extractedText)
 
   console.log('🔍 TextPreview - Content sources:', {
-    hasCurrentCompiledContent: !!currentCompiledContent,
-    currentCompiledContentLength: currentCompiledContent?.length,
+    hasMergedContent: !!mergedContent,
+    mergedContentLength: mergedContent?.length,
     hasCompiledContent: !!document.compiled_content,
+    hasUserEdits: documentPreview.userEdits.size > 0,
     hasExtractedText: !!extractedText
   })
 
@@ -50,8 +51,8 @@ export function TextPreview() {
     )
   }
 
-  // Prioritize real-time compiled content, then fallback to extracted text
-  const displayContent = currentCompiledContent || extractedText || 'No content available'
+  // Fallback for unstructured documents: use merged content
+  const displayContent = mergedContent || extractedText || 'No content available'
 
   return (
     <div className="p-4">

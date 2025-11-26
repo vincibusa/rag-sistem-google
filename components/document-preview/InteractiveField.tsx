@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useChatStore } from '@/store/chat-store'
 import { useUserEditSync } from '@/hooks/useUserEditSync'
 import { Edit2, MessageSquare, Check, X } from 'lucide-react'
@@ -42,6 +42,13 @@ export function InteractiveField({
   const userEdit = documentPreview.userEdits.get(fieldId)
   const displayContent = userEdit || compiledContent || originalContent
   const isActive = documentPreview.activeField === fieldId
+
+  // Sync editContent with userEdit from store
+  // This ensures edit mode shows the user's modifications
+  useEffect(() => {
+    const currentContent = userEdit || compiledContent
+    setEditContent(currentContent)
+  }, [userEdit, compiledContent])
 
   const handleSaveEdit = async () => {
     if (editContent.trim() && editContent !== compiledContent) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { streamChatResponse } from '@/lib/gemini'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { mergeUserEditsWithCompiledContent } from '@/lib/document-merge'
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,11 +37,22 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (session && session.user_id === userId) {
+        // Merge user edits with compiled content so AI sees user modifications
+        const userEdits = (session.user_edits || {}) as Record<string, any>
+        const documentStructure = session.document_structure as any
+        const baseContent = session.compiled_content || session.extracted_text
+
+        const mergeResult = mergeUserEditsWithCompiledContent(baseContent, userEdits, documentStructure)
+
+        console.log(
+          `🔄 Document context prepared: ${mergeResult.appliedEdits}/${mergeResult.totalFields} user edits applied`
+        )
+
         documentContext = {
           fileName: session.original_file_name,
           fileType: session.file_type,
           extractedText: session.extracted_text,
-          compiledContent: session.compiled_content || undefined,
+          compiledContent: mergeResult.mergedContent || undefined,
         }
       }
     }

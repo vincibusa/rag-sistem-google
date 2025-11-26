@@ -6,6 +6,7 @@ import { compileDOCXTemplate } from '@/lib/document-compilers/docx'
 import { compileXLSXTemplate } from '@/lib/document-compilers/xlsx'
 import { compilePDFTemplate } from '@/lib/document-compilers/pdf'
 import { SUPPORTED_FILE_TYPES, MAX_FILE_SIZE } from '@/lib/constants'
+import { mergeUserEditsWithCompiledContent } from '@/lib/document-merge'
 import type { Tables } from '@/lib/database.types'
 
 type DocumentSession = Tables<'document_sessions'>
@@ -205,6 +206,15 @@ export async function downloadCompiledDocument(
       throw new Error('No compiled content available. Please compile the document first.')
     }
 
+    // Merge user edits with compiled content so downloaded file includes user modifications
+    const userEdits = (session.user_edits || {}) as Record<string, any>
+    const documentStructure = session.document_structure as any
+    const mergeResult = mergeUserEditsWithCompiledContent(session.compiled_content, userEdits, documentStructure)
+
+    console.log(
+      `🔄 Preparing download: ${mergeResult.appliedEdits}/${mergeResult.totalFields} user edits applied to document`
+    )
+
     // Generate file based on original file type
     let fileData: Uint8Array
     let fileName: string
@@ -212,7 +222,7 @@ export async function downloadCompiledDocument(
 
     if (session.file_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       // DOCX
-      fileData = await compileDOCXTemplate(session.compiled_content)
+      fileData = await compileDOCXTemplate(mergeResult.mergedContent)
       fileName = session.original_file_name.replace(/\.docx$/i, '_compiled.docx')
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     } else if (
@@ -220,27 +230,27 @@ export async function downloadCompiledDocument(
       session.file_type === 'application/vnd.ms-excel'
     ) {
       // XLSX
-      fileData = await compileXLSXTemplate(session.compiled_content)
+      fileData = await compileXLSXTemplate(mergeResult.mergedContent)
       fileName = session.original_file_name.replace(/\.(xlsx|xls)$/i, '_compiled.xlsx')
       mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     } else if (session.file_type === 'application/pdf') {
       // PDF
-      fileData = await compilePDFTemplate(session.compiled_content)
+      fileData = await compilePDFTemplate(mergeResult.mergedContent)
       fileName = session.original_file_name.replace(/\.pdf$/i, '_compiled.pdf')
       mimeType = 'application/pdf'
     } else if (session.file_type === 'text/plain') {
       // TXT
-      fileData = new TextEncoder().encode(session.compiled_content)
+      fileData = new TextEncoder().encode(mergeResult.mergedContent)
       fileName = session.original_file_name.replace(/\.txt$/i, '_compiled.txt')
       mimeType = 'text/plain'
     } else if (session.file_type === 'text/csv') {
       // CSV
-      fileData = new TextEncoder().encode(session.compiled_content)
+      fileData = new TextEncoder().encode(mergeResult.mergedContent)
       fileName = session.original_file_name.replace(/\.csv$/i, '_compiled.csv')
       mimeType = 'text/csv'
     } else {
       // Default to TXT
-      fileData = new TextEncoder().encode(session.compiled_content)
+      fileData = new TextEncoder().encode(mergeResult.mergedContent)
       fileName = session.original_file_name + '_compiled.txt'
       mimeType = 'text/plain'
     }

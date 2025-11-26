@@ -6,7 +6,7 @@ import { useChatStore } from '@/store/chat-store'
 
 export function useUserEditSync() {
   const { user, accessToken } = useAuth()
-  const { documentPreview } = useChatStore()
+  const { documentPreview, invalidateMergedContent } = useChatStore()
 
   const syncUserEdit = useCallback(async (
     fieldId: string,
@@ -50,6 +50,10 @@ export function useUserEditSync() {
         action,
         result
       })
+
+      // Invalidate merged content cache after successful sync
+      invalidateMergedContent()
+      console.log('✅ Merged content cache invalidated')
 
       return true
     } catch (error) {
@@ -95,12 +99,16 @@ export function useUserEditSync() {
         result
       })
 
+      // Invalidate merged content cache after successful bulk sync
+      invalidateMergedContent()
+      console.log('✅ Merged content cache invalidated after bulk sync')
+
       return true
     } catch (error) {
       console.error('🔍 useUserEditSync - Error bulk syncing user edits:', error)
       return false
     }
-  }, [user, accessToken, documentPreview.currentDocument, documentPreview.userEdits])
+  }, [user, accessToken, documentPreview.currentDocument, documentPreview.userEdits, invalidateMergedContent])
 
   return {
     syncUserEdit,
