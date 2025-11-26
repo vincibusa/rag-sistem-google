@@ -62,3 +62,29 @@ export interface AutofillData {
   sourceFileUris: string[]
   formattedOutput: string
 }
+
+// Excel/Spreadsheet Types
+export interface ExcelCell {
+  value: string | number | null
+  formula?: string
+  style?: CellStyle
+}
+
+export interface CellStyle {
+  bold?: boolean
+  italic?: boolean
+  color?: string
+  backgroundColor?: string
+}
+
+export interface ExcelSheet {
+  name: string
+  rows: ExcelCell[][]
+  columnCount: number
+  rowCount: number
+}
+
+export interface ExcelStructure {
+  sheets: ExcelSheet[]
+  activeSheetIndex: number
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { Message } from '@/lib/types'
+import { Message, ExcelStructure } from '@/lib/types'
 import { mergeUserEditsWithCompiledContent } from '@/lib/document-merge'
 import type { Tables } from '@/lib/database.types'
 
@@ -28,6 +28,9 @@ interface DocumentPreviewState {
   // Merged content cache with version-based invalidation
   mergedContent: string | null
   mergedContentVersion: number
+  // Excel/Spreadsheet state
+  excelStructure: ExcelStructure | null
+  excelCellEdits: Map<string, string> // key: "SheetName:CellRef", value: contenuto
 }
 
 interface ChatStore {
@@ -75,6 +78,11 @@ interface ChatStore {
   getMergedContent: () => string | null
   invalidateMergedContent: () => void
   getFieldMergedContent: (fieldId: string) => string | null
+
+  // Excel/Spreadsheet methods
+  setExcelStructure: (structure: ExcelStructure) => void
+  updateExcelCell: (sheetName: string, cellRef: string, value: string) => void
+  setActiveSheet: (index: number) => void
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -95,6 +103,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     comments: [],
     mergedContent: null,
     mergedContentVersion: 0,
+    excelStructure: null,
+    excelCellEdits: new Map(),
   },
 
   setMessages: (messages) => set({ messages }),
@@ -369,5 +379,47 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     return null
+  },
+
+  // Excel/Spreadsheet actions
+  setExcelStructure: (structure) => {
+    set((state) => ({
+      documentPreview: {
+        ...state.documentPreview,
+        excelStructure: structure,
+      },
+    }))
+  },
+
+  updateExcelCell: (sheetName, cellRef, value) => {
+    set((state) => {
+      const cellId = `${sheetName}:${cellRef}`
+      const newEdits = new Map(state.documentPreview.excelCellEdits)
+      newEdits.set(cellId, value)
+
+      return {
+        documentPreview: {
+          ...state.documentPreview,
+          excelCellEdits: newEdits,
+          mergedContentVersion: state.documentPreview.mergedContentVersion + 1,
+        },
+      }
+    })
+  },
+
+  setActiveSheet: (index) => {
+    set((state) => {
+      if (!state.documentPreview.excelStructure) return state
+
+      return {
+        documentPreview: {
+          ...state.documentPreview,
+          excelStructure: {
+            ...state.documentPreview.excelStructure,
+            activeSheetIndex: index,
+          },
+        },
+      }
+    })
   },
 }))

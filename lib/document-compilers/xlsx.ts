@@ -1,11 +1,14 @@
 import ExcelJS from 'exceljs'
+import { parseCellRef } from '@/lib/excel-parser'
 
 /**
  * Create an XLSX spreadsheet from filled text
  * Parses the filled text and creates a new spreadsheet
+ * Optionally applies user cell edits
  */
 export async function compileXLSXTemplate(
-  filledText: string
+  filledText: string,
+  cellEdits?: Map<string, string>
 ): Promise<Uint8Array> {
   try {
     console.log('📊 Creating XLSX from filled text...')
@@ -58,6 +61,42 @@ export async function compileXLSXTemplate(
           worksheet.addRow(cells)
         }
       }
+    }
+
+    // Apply user cell edits if provided
+    if (cellEdits && cellEdits.size > 0) {
+      console.log(`📝 Applying ${cellEdits.size} cell edits to Excel...`)
+
+      for (const [cellId, value] of cellEdits) {
+        // Parse cellId: "SheetName:CellRef" (e.g., "Sheet1:A1")
+        const [sheetName, cellRef] = cellId.split(':')
+        if (!sheetName || !cellRef) {
+          console.warn(`⚠️ Invalid cell ID format: ${cellId}`)
+          continue
+        }
+
+        // Find the sheet
+        const worksheet = workbook.worksheets.find(ws => ws.name === sheetName)
+        if (!worksheet) {
+          console.warn(`⚠️ Sheet not found: ${sheetName}`)
+          continue
+        }
+
+        // Parse cell reference (e.g., "A1" -> { rowIndex: 0, colIndex: 0 })
+        const cellPos = parseCellRef(cellRef)
+        if (!cellPos) {
+          console.warn(`⚠️ Invalid cell reference: ${cellRef}`)
+          continue
+        }
+
+        const { rowIndex, colIndex } = cellPos
+        const excelCell = worksheet.getCell(rowIndex + 1, colIndex + 1)
+        excelCell.value = value
+
+        console.log(`  ✓ Updated cell ${sheetName}!${cellRef} = "${value}"`)
+      }
+
+      console.log('✅ All cell edits applied successfully')
     }
 
     console.log('✅ XLSX compiled successfully')

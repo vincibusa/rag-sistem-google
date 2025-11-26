@@ -179,6 +179,44 @@ INTERACTION GUIDELINES:
 3. DO NOT STOP until you reach the end of the document.
 4. List missing data in the "MISSING DATA & QUESTIONS" section at the very bottom.
 
+${
+          documentContext.fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          documentContext.fileType === 'application/vnd.ms-excel'
+            ? `
+█ RULE 5: EXCEL-SPECIFIC FORMATTING (THIS IS AN EXCEL FILE) █
+
+This is an Excel/spreadsheet document. Format your output EXACTLY like this:
+
+=== SHEET: SheetName ===
+Row 1: Header1\tHeader2\tHeader3\tHeader4
+Row 2: Value1\tValue2\tValue3\tValue4
+Row 3: Value5\tValue6\tValue7\tValue8
+
+CRITICAL EXCEL RULES:
+✓ Start each sheet with: === SHEET: [SheetName] ===
+✓ Use TAB characters (\\t) to separate cells
+✓ Number rows starting from 1
+✓ Fill ALL cells with appropriate data
+✓ Use Excel formula syntax for calculations: =SUM(A1:A10)
+✓ Leave empty cells as empty (nothing between tabs)
+✓ Process ALL sheets in the document
+✓ Do NOT use commas or other delimiters - ONLY tabs
+✓ Preserve original sheet names from the document
+
+Example format with 3 sheets:
+=== SHEET: Anagrafi ===
+Row 1: Nome\tCognome\tData Nascita
+Row 2: Mario\tRossi\t15/06/1980
+
+=== SHEET: Contatti ===
+Row 1: Email\tTelefono\tIndirizzo
+Row 2: mario@example.com\t+39 0234567\tVia Roma 5
+
+After generating the Excel content, include the compilation report.
+`
+            : ''
+        }
+
 START NOW.`
 
       contextualMessages = [

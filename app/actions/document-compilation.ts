@@ -229,8 +229,12 @@ export async function downloadCompiledDocument(
       session.file_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
       session.file_type === 'application/vnd.ms-excel'
     ) {
-      // XLSX
-      fileData = await compileXLSXTemplate(mergeResult.mergedContent)
+      // XLSX - Convert userEdits to Map for cell-level edits
+      const cellEditsMap = new Map<string, string>(
+        Object.entries(userEdits).map(([k, v]) => [k, String(v)])
+      )
+
+      fileData = await compileXLSXTemplate(mergeResult.mergedContent, cellEditsMap)
       fileName = session.original_file_name.replace(/\.(xlsx|xls)$/i, '_compiled.xlsx')
       mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     } else if (session.file_type === 'application/pdf') {
