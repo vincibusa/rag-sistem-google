@@ -38,9 +38,9 @@ export async function* streamChatResponse(
   try {
     // Prepend document context to messages if available
     let contextualMessages = messages
-    if (documentContext) {
-      // Format entities for the prompt
-      const entitiesText = entities.length > 0 ? `
+
+    // Format entities for all modes
+    const entitiesText = entities.length > 0 ? `
 
 ═══════════════════════════════════════════════════════════════
 📊 STRUCTURED DATA REGISTRY - YOUR PRIMARY DATA SOURCE
@@ -49,24 +49,25 @@ export async function* streamChatResponse(
 You have access to ${entities.length} extracted and verified entities:
 
 ${entities
-          .map((entity) => {
-            const attrs = entity.attributes as Record<string, any>
-            const attrsText = Object.entries(attrs)
-              .map(([key, value]) => `  • ${key}: ${value}`)
-              .join('\n')
-            return `[${entity.entity_type.toUpperCase()}] ${entity.entity_name}\n${attrsText}`
-          })
-          .join('\n\n')}
+      .map((entity) => {
+        const attrs = entity.attributes as Record<string, any>
+        const attrsText = Object.entries(attrs)
+          .map(([key, value]) => `  • ${key}: ${value}`)
+          .join('\n')
+        return `[${entity.entity_type.toUpperCase()}] ${entity.entity_name}\n${attrsText}`
+      })
+      .join('\n\n')}
 
 ═══════════════════════════════════════════════════════════════
 
 CRITICAL: This structured data is VERIFIED and ACCURATE.
 - ALWAYS check this registry FIRST before searching documents
 - These entities can be edited by users, so they are the SOURCE OF TRUTH
-- If a field matches an entity here, USE IT DIRECTLY - don't search elsewhere
 
 ` : ''
 
+    if (documentContext) {
+      // COMPILATION MODE - Document filling assistant
       const systemPrompt = `You are an ULTRA-ACCURATE document compilation assistant. Your PRIMARY GOAL is ACCURACY and COMPLETENESS.
 
 DOCUMENT INFORMATION:
@@ -224,6 +225,30 @@ START NOW.`
         ...messages,
       ]
       console.log('🤖 System Prompt generated with entities length:', entitiesText.length)
+    } else {
+      // RAG MODE - Document search and question answering
+      const ragSystemPrompt = `You are a helpful AI assistant specialized in answering questions about documents.
+
+Your capabilities:
+- You can search through uploaded documents using File Search
+- You have access to extracted business entities and their attributes
+- You provide accurate, sourced answers based on document content
+
+When answering questions:
+1. Search the documents for relevant information
+2. Provide clear, concise answers with context from the documents
+3. If information is not found, say so clearly
+4. Always cite the document sections you're referencing
+
+${entitiesText}
+
+Be helpful, accurate, and always cite your sources from the documents.`
+
+      contextualMessages = [
+        { role: 'assistant' as const, content: ragSystemPrompt },
+        ...messages,
+      ]
+      console.log('🎯 RAG Mode System Prompt generated')
     }
 
     // If file search stores are available, use them for RAG

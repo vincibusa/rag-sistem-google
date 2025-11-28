@@ -41,6 +41,7 @@ interface ChatStore {
   documentSession: DocumentSession | null
   editingMessageId: string | null
   documentPreview: DocumentPreviewState
+  chatMode: 'rag' | 'compilation'
 
   setMessages: (messages: Message[]) => void
   addMessage: (message: Message) => void
@@ -57,6 +58,7 @@ interface ChatStore {
   updateDocumentSessionRealTime: (updates: Partial<DocumentSession>) => void
   clearDocumentSession: () => void
   setEditingMessageId: (messageId: string | null) => void
+  setChatMode: (mode: 'rag' | 'compilation') => void
 
   // Document Preview Actions
   setDocumentPreviewVisible: (visible: boolean) => void
@@ -92,6 +94,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   error: null,
   documentSession: null,
   editingMessageId: null,
+  chatMode: 'rag',
   documentPreview: {
     isVisible: false,
     currentDocument: null,
@@ -144,7 +147,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       sessionId: session?.id,
       fileName: session?.original_file_name
     })
-    set({ documentSession: session })
+
+    const newMode = session ? 'compilation' : 'rag'
+
+    set({
+      documentSession: session,
+      chatMode: newMode
+    })
   },
   updateDocumentSessionContent: (compiledContent) =>
     set((state) => {
@@ -170,6 +179,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }),
   clearDocumentSession: () => set({ documentSession: null }),
   setEditingMessageId: (messageId) => set({ editingMessageId: messageId }),
+  setChatMode: (mode) => {
+    console.log('🔍 chat-store - setChatMode called:', mode)
+    set({ chatMode: mode })
+  },
 
   // Document Preview Actions
   setDocumentPreviewVisible: (visible) => {

@@ -35,7 +35,7 @@ export function TextPreview() {
   if (parsedStructure && parsedStructure.fields && parsedStructure.fields.length > 0) {
     // Render structured document with fields
     return (
-      <div className="p-4 space-y-4">
+      <div className="overflow-y-auto h-full p-4 space-y-4">
         {parsedStructure.fields.map((field: any) => (
           <InteractiveField
             key={field.id}
@@ -45,6 +45,7 @@ export function TextPreview() {
             compiledContent={field.compiledContent || ''}
             isEditable={!field.isSection}
             isSection={field.isSection}
+            enableDirectEdit={true}
           />
         ))}
       </div>
@@ -55,7 +56,7 @@ export function TextPreview() {
   const displayContent = mergedContent || extractedText || 'No content available'
 
   return (
-    <div className="p-4">
+    <div className="overflow-y-auto h-full p-4">
       <div className="prose prose-sm max-w-none">
         <pre className="whitespace-pre-wrap font-sans text-sm">
           {displayContent}

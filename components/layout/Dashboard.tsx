@@ -70,6 +70,7 @@ export function Dashboard() {
     setDocumentSession,
     updateDocumentSessionContent,
     clearDocumentSession: clearDocumentSessionStore,
+    chatMode,
   } = useChatStore()
 
   const {
@@ -388,6 +389,7 @@ export function Dashboard() {
           ],
           fileSearchStoreNames,
           documentSessionId: documentSession?.id,
+          mode: chatMode,
         }),
         signal: abortControllerRef.current.signal,
       })
@@ -473,8 +475,41 @@ export function Dashboard() {
       } else {
         // For regular chat (no document session), use all content
         assistantContent = documentContent + progressMessage
+        console.log('🔍 RAG Mode - Streaming complete:', {
+          documentContentLength: documentContent.length,
+          progressMessageLength: progressMessage.length,
+          assistantContentLength: assistantContent.trim().length,
+          assistantContentPreview: assistantContent.substring(0, 100)
+        })
+
         if (assistantContent.trim()) {
+          console.log('📝 Updating last message with RAG response')
           updateLastMessage(assistantContent)
+
+          // Save RAG response to database
+          try {
+            const response = await fetch('/api/messages/update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: user.id,
+                accessToken,
+                notebookId: currentNotebookId,
+                messageId: assistantMessage.id,
+                content: assistantContent
+              })
+            })
+
+            if (response.ok) {
+              console.log('✅ RAG response saved to database')
+            } else {
+              console.warn('⚠️ Failed to save RAG response to database:', response.status)
+            }
+          } catch (error) {
+            console.error('⚠️ Error saving RAG response to database:', error)
+          }
+        } else {
+          console.warn('⚠️ RAG response is empty!')
         }
       }
 

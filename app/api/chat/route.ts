@@ -5,7 +5,7 @@ import { mergeUserEditsWithCompiledContent } from '@/lib/document-merge'
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, accessToken, notebookId, messages, fileSearchStoreNames, documentSessionId } = await req.json()
+    const { userId, accessToken, notebookId, messages, fileSearchStoreNames, documentSessionId, mode } = await req.json()
 
     if (!userId || !accessToken || !notebookId || !messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    const chatMode = mode === 'compilation' ? 'compilation' : 'rag'
+    console.log('🎯 Chat mode:', chatMode)
 
     const supabase = createServerSupabaseClient(accessToken)
 
@@ -80,12 +83,19 @@ export async function POST(req: NextRequest) {
           let compiledContent = ''
           let lastStatusUpdate = ''
 
-          for await (const chunk of streamChatResponse(messages, fileSearchStoreNames || [], documentContext, entities || [])) {
+          const contextToPass = chatMode === 'compilation' ? documentContext : undefined
+
+          for await (const chunk of streamChatResponse(messages, fileSearchStoreNames || [], contextToPass, entities || [])) {
             if (typeof chunk === 'string') {
               compiledContent += chunk
 
+              // In RAG mode: stream content directly to client
+              if (chatMode === 'rag') {
+                controller.enqueue(encoder.encode(chunk))
+              }
+
               // Update document session with real-time compilation progress
-              if (documentSessionId && compiledContent.length > 0) {
+              if (chatMode === 'compilation' && documentSessionId && compiledContent.length > 0) {
                 try {
                   await supabase
                     .from('document_sessions')
@@ -100,17 +110,19 @@ export async function POST(req: NextRequest) {
                 }
               }
 
-              // Extract status updates from compiled content for chat display
-              const statusUpdate = extractStatusUpdate(compiledContent, lastStatusUpdate)
-              if (statusUpdate && statusUpdate !== lastStatusUpdate) {
-                lastStatusUpdate = statusUpdate
-                controller.enqueue(encoder.encode(`[PROGRESS]${statusUpdate}\n`))
+              // Extract status updates from compiled content for chat display (ONLY in compilation mode)
+              if (chatMode === 'compilation') {
+                const statusUpdate = extractStatusUpdate(compiledContent, lastStatusUpdate)
+                if (statusUpdate && statusUpdate !== lastStatusUpdate) {
+                  lastStatusUpdate = statusUpdate
+                  controller.enqueue(encoder.encode(`[PROGRESS]${statusUpdate}\n`))
+                }
               }
             }
           }
 
           // Final update with completed content
-          if (documentSessionId && compiledContent.length > 0) {
+          if (chatMode === 'compilation' && documentSessionId && compiledContent.length > 0) {
             try {
               await supabase
                 .from('document_sessions')
@@ -125,8 +137,10 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Send final status message
-          controller.enqueue(encoder.encode('[PROGRESS]✅ Document compilation completed. Check the preview for the full compiled content.\n'))
+          // Send final status message ONLY for document compilation
+          if (chatMode === 'compilation') {
+            controller.enqueue(encoder.encode('[PROGRESS]✅ Document compilation completed. Check the preview for the full compiled content.\n'))
+          }
           controller.close()
         } catch (error) {
           controller.error(error)

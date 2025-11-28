@@ -15,6 +15,7 @@ interface InteractiveFieldProps {
   compiledContent: string
   isEditable: boolean
   isSection?: boolean
+  enableDirectEdit?: boolean
 }
 
 export function InteractiveField({
@@ -24,6 +25,7 @@ export function InteractiveField({
   compiledContent,
   isEditable,
   isSection = false,
+  enableDirectEdit = false,
 }: InteractiveFieldProps) {
   const {
     documentPreview,
@@ -161,7 +163,17 @@ export function InteractiveField({
           </div>
         </div>
       ) : (
-        <div className="prose prose-sm max-w-none">
+        <div
+          className={cn(
+            "prose prose-sm max-w-none",
+            isEditable && enableDirectEdit && "cursor-text hover:bg-muted/30 p-2 rounded transition-colors"
+          )}
+          onDoubleClick={() => {
+            if (isEditable && enableDirectEdit && !isSection) {
+              setIsEditing(true)
+            }
+          }}
+        >
           <p className="text-sm leading-relaxed whitespace-pre-wrap">
             {displayContent}
           </p>
