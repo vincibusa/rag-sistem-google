@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
@@ -203,7 +203,7 @@ export function ChatContainer({
                     >
                       <ChatMessage
                         message={message}
-                        fileAttachments={message.fileUris && message.fileUris.length > 0 ? getFileAttachments(message.fileUris) : undefined}
+                        fileAttachments={message.file_uris && message.file_uris.length > 0 ? getFileAttachments(message.file_uris) : undefined}
                       />
                     </motion.div>
                   ))}
