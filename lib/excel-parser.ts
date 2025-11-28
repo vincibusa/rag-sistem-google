@@ -140,7 +140,36 @@ export function formatExcelStructureAsText(structure: ExcelStructure): string {
 
     for (let i = 0; i < sheet.rows.length; i++) {
       const row = sheet.rows[i]
-      const cellValues = row.map(cell => cell.value?.toString() || '').join('\t')
+      const cellValues = row.map(cell => {
+        const cellValue = cell.value
+        if (cellValue === null || cellValue === undefined) return ''
+
+        // Handle different cell value types
+        if (typeof cellValue === 'object') {
+          if ('text' in cellValue) {
+            // Rich text: { text: "..." }
+            return String(cellValue.text)
+          } else if ('result' in cellValue) {
+            // Formula: { formula: "...", result: ... }
+            return String(cellValue.result)
+          } else if ('hyperlink' in cellValue && 'text' in cellValue) {
+            // Hyperlink: { text: "...", hyperlink: "..." }
+            return String(cellValue.text)
+          } else if ('error' in cellValue) {
+            // Error: { error: "..." }
+            return String(cellValue.error)
+          } else if (cellValue instanceof Date) {
+            // Date object
+            return cellValue.toISOString()
+          } else {
+            // Unknown object type
+            console.warn('Unknown cell value in formatExcelStructureAsText:', cellValue)
+            return JSON.stringify(cellValue)
+          }
+        }
+        // Simple value: string, number, boolean
+        return String(cellValue)
+      }).join('\t')
       lines.push(`Row ${i + 1}: ${cellValues}`)
     }
 

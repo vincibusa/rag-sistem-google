@@ -23,8 +23,9 @@ export function SpreadsheetPreview() {
     }
   }, [structure, documentPreview.excelStructure, setExcelStructure])
 
-  // Use stored structure or fall back to parsed
-  const activeStructure = documentPreview.excelStructure || structure
+  // Always use freshly parsed structure during streaming to show real-time updates
+  // The freshly parsed structure will contain current_compiled_content
+  const activeStructure = structure || documentPreview.excelStructure
 
   if (!activeStructure || activeStructure.sheets.length === 0) {
     return (

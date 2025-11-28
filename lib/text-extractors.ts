@@ -110,9 +110,29 @@ export async function extractTextFromXLSX(buffer: Buffer): Promise<string> {
 
           if (cellValue !== null && cellValue !== undefined) {
             // Handle different cell value types
-            if (typeof cellValue === 'object' && 'text' in cellValue) {
-              rowValues.push(String(cellValue.text))
+            if (typeof cellValue === 'object') {
+              if ('text' in cellValue) {
+                // Rich text: { text: "..." }
+                rowValues.push(String(cellValue.text))
+              } else if ('result' in cellValue) {
+                // Formula: { formula: "=SUM(A1:A5)", result: 100 }
+                rowValues.push(String(cellValue.result))
+              } else if ('hyperlink' in cellValue && 'text' in cellValue) {
+                // Hyperlink: { text: "Link", hyperlink: "url" }
+                rowValues.push(String(cellValue.text))
+              } else if ('error' in cellValue) {
+                // Error: { error: "#DIV/0!" }
+                rowValues.push(String(cellValue.error))
+              } else if (cellValue instanceof Date) {
+                // Date object
+                rowValues.push(cellValue.toISOString())
+              } else {
+                // Unknown object type - log warning and use JSON
+                console.warn('Unknown cell value object:', cellValue)
+                rowValues.push(JSON.stringify(cellValue))
+              }
             } else {
+              // Simple value: string, number, boolean
               rowValues.push(String(cellValue))
             }
           } else {
