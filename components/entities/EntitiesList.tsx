@@ -106,10 +106,26 @@ export function EntitiesList({ notebookId }: EntitiesListProps) {
     const keys = Object.keys(attrs)
     if (keys.length === 0) return 'No attributes'
 
+    // Helper to format a value (handle nested objects)
+    const formatValue = (value: any): string => {
+      if (value === null || value === undefined) return 'N/A'
+      if (typeof value === 'object') {
+        // If it's an object, stringify it nicely
+        if (Array.isArray(value)) {
+          return value.join(', ')
+        }
+        // For objects, show key-value pairs
+        return Object.entries(value)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ')
+      }
+      return String(value)
+    }
+
     // Show first 3 attributes
     const preview = keys
       .slice(0, 3)
-      .map((key) => `${key}: ${attrs[key]}`)
+      .map((key) => `${key}: ${formatValue(attrs[key])}`)
       .join(', ')
 
     return keys.length > 3 ? `${preview}...` : preview
