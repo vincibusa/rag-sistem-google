@@ -11,9 +11,17 @@ export const SUPPORTED_FILE_TYPES = [
 ]
 export const SUPPORTED_EXTENSIONS = ['.pdf', '.txt', '.csv', '.docx', '.xlsx', '.xls', '.doc']
 
-// Gemini API constants
-export const GEMINI_MODEL = 'gemini-2.5-flash'
-export const GEMINI_VISION_MODEL = 'gemini-2.5-flash'
+// Gemini API constants - Model differentiation for cost optimization
+export const AI_MODELS = {
+  RAG_SIMPLE: 'gemini-2.5-flash-lite',      // Simple queries: "trova info", "cos'è"
+  RAG_COMPLEX: 'gemini-2.5-flash',          // Multi-step reasoning, analysis
+  COMPILATION: 'gemini-2.5-flash',          // Document filling (needs high accuracy)
+  ENTITY_EXTRACTION: 'gemini-2.5-flash',    // Structured data extraction
+} as const
+
+// Default models for backward compatibility
+export const GEMINI_MODEL = AI_MODELS.RAG_COMPLEX
+export const GEMINI_VISION_MODEL = AI_MODELS.RAG_COMPLEX
 
 // UI Constants
 export const TOAST_DURATION = 3000

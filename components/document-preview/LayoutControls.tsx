@@ -72,7 +72,7 @@ export function LayoutControls() {
       )
 
       // Create blob and trigger download
-      const blob = new Blob([fileData as any], { type: mimeType })
+      const blob = new Blob([fileData as BlobPart], { type: mimeType })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

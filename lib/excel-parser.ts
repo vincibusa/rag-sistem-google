@@ -144,23 +144,26 @@ export function formatExcelStructureAsText(structure: ExcelStructure): string {
         const cellValue = cell.value
         if (cellValue === null || cellValue === undefined) return ''
 
+        // Handle Date objects first (before typeof check)
+        if ((cellValue as unknown) instanceof Date) {
+          return (cellValue as unknown as Date).toISOString()
+        }
+
         // Handle different cell value types
-        if (typeof cellValue === 'object') {
-          if ('text' in cellValue) {
+        if (typeof cellValue === 'object' && cellValue !== null) {
+          const objValue = cellValue as Record<string, any>
+          if ('text' in objValue) {
             // Rich text: { text: "..." }
-            return String(cellValue.text)
-          } else if ('result' in cellValue) {
+            return String(objValue.text)
+          } else if ('result' in objValue) {
             // Formula: { formula: "...", result: ... }
-            return String(cellValue.result)
-          } else if ('hyperlink' in cellValue && 'text' in cellValue) {
+            return String(objValue.result)
+          } else if ('hyperlink' in objValue && 'text' in objValue) {
             // Hyperlink: { text: "...", hyperlink: "..." }
-            return String(cellValue.text)
-          } else if ('error' in cellValue) {
+            return String(objValue.text)
+          } else if ('error' in objValue) {
             // Error: { error: "..." }
-            return String(cellValue.error)
-          } else if (cellValue instanceof Date) {
-            // Date object
-            return cellValue.toISOString()
+            return String(objValue.error)
           } else {
             // Unknown object type
             console.warn('Unknown cell value in formatExcelStructureAsText:', cellValue)

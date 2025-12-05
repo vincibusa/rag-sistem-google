@@ -135,10 +135,13 @@ export async function deleteFileSearchStore(name: string) {
 
 /**
  * Query with File Search for RAG
+ * Supports cached content for system prompts and dynamic model selection
  */
 export async function* streamChatWithFileSearch(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-  fileSearchStoreNames: string[]
+  fileSearchStoreNames: string[],
+  cachedContentId?: string | null,
+  modelName: string = GEMINI_MODEL
 ) {
   try {
     // Build prompt from messages
@@ -146,23 +149,34 @@ export async function* streamChatWithFileSearch(
       .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
       .join('\n\n')
 
+    // Build config with optional cached content
+    const config: any = {
+      tools: [
+        {
+          fileSearch: {
+            fileSearchStoreNames: fileSearchStoreNames
+          }
+        }
+      ],
+      thinkingConfig: {
+        thinkingBudget: 0,
+      },
+      maxOutputTokens: 8192,
+    }
+
+    // Add cached content if available
+    if (cachedContentId) {
+      config.cachedContent = cachedContentId
+      console.log('🚀 Using cached content in File Search query:', cachedContentId)
+    }
+
+    console.log(`📊 Using model: ${modelName} for File Search query`)
+
     // Generate content with File Search tool using streaming
     const stream = await client.models.generateContentStream({
-      model: GEMINI_MODEL,
+      model: modelName,
       contents: prompt,
-      config: {
-        tools: [
-          {
-            fileSearch: {
-              fileSearchStoreNames: fileSearchStoreNames
-            }
-          }
-        ],
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
-        maxOutputTokens: 8192,
-      }
+      config
     })
 
     // Yield chunks as they arrive from Gemini for real-time streaming

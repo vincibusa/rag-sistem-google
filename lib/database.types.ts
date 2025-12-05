@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      cost_tracking: {
+        Row: {
+          cached_tokens: number
+          cost_usd: number
+          created_at: string
+          id: string
+          input_tokens: number
+          metadata: Json | null
+          model: string
+          notebook_id: string | null
+          operation: string
+          output_tokens: number
+          user_id: string | null
+        }
+        Insert: {
+          cached_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          metadata?: Json | null
+          model: string
+          notebook_id?: string | null
+          operation: string
+          output_tokens?: number
+          user_id?: string | null
+        }
+        Update: {
+          cached_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          metadata?: Json | null
+          model?: string
+          notebook_id?: string | null
+          operation?: string
+          output_tokens?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_tracking_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_entities: {
         Row: {
           attributes: Json

@@ -1,6 +1,12 @@
 import { GoogleGenAI } from '@google/genai'
 import { streamChatWithFileSearch } from './file-search'
-import { GEMINI_MODEL } from './constants'
+import { GEMINI_MODEL, AI_MODELS } from './constants'
+import { getCachedSystemPrompt } from './cache-manager'
+import {
+  selectModelForQuery,
+  getCompilationModel,
+  calculateCostSavings
+} from './model-selector'
 
 const apiKey = process.env.GOOGLE_GEMINI_API_KEY
 if (!apiKey) {
@@ -16,68 +22,29 @@ export function getModel() {
 }
 
 /**
- * Stream chat response with File Search RAG
- * This integrates with File Search stores for semantic search and citations
+ * Base RAG system prompt (for caching)
+ * This is the static part that can be cached
  */
-export async function* streamChatResponse(
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-  fileSearchStoreNames: string[] = [],
-  documentContext?: {
-    fileName: string
-    fileType: string
-    extractedText: string
-    compiledContent?: string
-  },
-  entities: Array<{
-    id: string
-    entity_type: string
-    entity_name: string
-    attributes: any
-  }> = []
-) {
-  try {
-    // Prepend document context to messages if available
-    let contextualMessages = messages
+const RAG_BASE_SYSTEM_PROMPT = `You are a helpful AI assistant specialized in answering questions about documents.
 
-    // Format entities for all modes
-    const entitiesText = entities.length > 0 ? `
+Your capabilities:
+- You can search through uploaded documents using File Search
+- You have access to extracted business entities and their attributes
+- You provide accurate, sourced answers based on document content
 
-═══════════════════════════════════════════════════════════════
-📊 STRUCTURED DATA REGISTRY - YOUR PRIMARY DATA SOURCE
-═══════════════════════════════════════════════════════════════
+When answering questions:
+1. Search the documents for relevant information
+2. Provide clear, concise answers with context from the documents
+3. If information is not found, say so clearly
+4. Always cite the document sections you're referencing
 
-You have access to ${entities.length} extracted and verified entities:
+Be helpful, accurate, and always cite your sources from the documents.`
 
-${entities
-      .map((entity) => {
-        const attrs = entity.attributes as Record<string, any>
-        const attrsText = Object.entries(attrs)
-          .map(([key, value]) => `  • ${key}: ${value}`)
-          .join('\n')
-        return `[${entity.entity_type.toUpperCase()}] ${entity.entity_name}\n${attrsText}`
-      })
-      .join('\n\n')}
-
-═══════════════════════════════════════════════════════════════
-
-CRITICAL: This structured data is VERIFIED and ACCURATE.
-- ALWAYS check this registry FIRST before searching documents
-- These entities can be edited by users, so they are the SOURCE OF TRUTH
-
-` : ''
-
-    if (documentContext) {
-      // COMPILATION MODE - Document filling assistant
-      const systemPrompt = `You are an ULTRA-ACCURATE document compilation assistant. Your PRIMARY GOAL is ACCURACY and COMPLETENESS.
-
-DOCUMENT INFORMATION:
-- File name: ${documentContext.fileName}
-- File type: ${documentContext.fileType}
-
-EXTRACTED TEXT FROM DOCUMENT:
-${documentContext.extractedText}
-
-${documentContext.compiledContent ? `CURRENT COMPILED VERSION:\n${documentContext.compiledContent}\n\n` : ''}${entitiesText}
+/**
+ * Base compilation system prompt (for caching)
+ * This is the static part that can be cached
+ */
+const COMPILATION_BASE_SYSTEM_PROMPT = `You are an ULTRA-ACCURATE document compilation assistant. Your PRIMARY GOAL is ACCURACY and COMPLETENESS.
 
 ═══════════════════════════════════════════════════════════════
 🎯 CRITICAL RULES - VIOLATING THESE IS UNACCEPTABLE
@@ -180,11 +147,81 @@ INTERACTION GUIDELINES:
 3. DO NOT STOP until you reach the end of the document.
 4. List missing data in the "MISSING DATA & QUESTIONS" section at the very bottom.
 
+START NOW.`
+
+/**
+ * Stream chat response with File Search RAG
+ * This integrates with File Search stores for semantic search and citations
+ */
+export async function* streamChatResponse(
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  fileSearchStoreNames: string[] = [],
+  documentContext?: {
+    fileName: string
+    fileType: string
+    extractedText: string
+    compiledContent?: string
+  },
+  entities: Array<{
+    id: string
+    entity_type: string
+    entity_name: string
+    attributes: any
+  }> = []
+) {
+  try {
+    // Prepend document context to messages if available
+    let contextualMessages = messages
+
+    // Format entities for all modes
+    const entitiesText = entities.length > 0 ? `
+
+═══════════════════════════════════════════════════════════════
+📊 STRUCTURED DATA REGISTRY - YOUR PRIMARY DATA SOURCE
+═══════════════════════════════════════════════════════════════
+
+You have access to ${entities.length} extracted and verified entities:
+
+${entities
+      .map((entity) => {
+        const attrs = entity.attributes as Record<string, any>
+        const attrsText = Object.entries(attrs)
+          .map(([key, value]) => `  • ${key}: ${value}`)
+          .join('\n')
+        return `[${entity.entity_type.toUpperCase()}] ${entity.entity_name}\n${attrsText}`
+      })
+      .join('\n\n')}
+
+═══════════════════════════════════════════════════════════════
+
+CRITICAL: This structured data is VERIFIED and ACCURATE.
+- ALWAYS check this registry FIRST before searching documents
+- These entities can be edited by users, so they are the SOURCE OF TRUTH
+
+` : ''
+
+    if (documentContext) {
+      // COMPILATION MODE - Document filling assistant
+
+      // Try to use cached base prompt (this saves ~1500 tokens)
+      const cachedPromptId = await getCachedSystemPrompt('compilation', COMPILATION_BASE_SYSTEM_PROMPT)
+
+      // Build dynamic context (document-specific, cannot be cached)
+      const dynamicContext = `
+DOCUMENT INFORMATION:
+- File name: ${documentContext.fileName}
+- File type: ${documentContext.fileType}
+
+EXTRACTED TEXT FROM DOCUMENT:
+${documentContext.extractedText}
+
+${documentContext.compiledContent ? `CURRENT COMPILED VERSION:\n${documentContext.compiledContent}\n\n` : ''}${entitiesText}
+
 ${
           documentContext.fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
           documentContext.fileType === 'application/vnd.ms-excel'
             ? `
-█ RULE 5: EXCEL-SPECIFIC FORMATTING (THIS IS AN EXCEL FILE) █
+█ EXCEL-SPECIFIC FORMATTING (THIS IS AN EXCEL FILE) █
 
 This is an Excel/spreadsheet document. Format your output EXACTLY like this:
 
@@ -216,9 +253,19 @@ Row 2: mario@example.com\t+39 0234567\tVia Roma 5
 After generating the Excel content, include the compilation report.
 `
             : ''
-        }
+        }`
 
-START NOW.`
+      // Construct system prompt: use cache if available, otherwise full prompt
+      let systemPrompt: string
+      if (cachedPromptId) {
+        // Using cached base prompt + dynamic context
+        console.log('🚀 Using CACHED compilation prompt (saving ~1500 tokens)')
+        systemPrompt = dynamicContext
+      } else {
+        // Fallback: full prompt (cache not available)
+        console.log('⚠️ Cache not available, using full prompt')
+        systemPrompt = COMPILATION_BASE_SYSTEM_PROMPT + '\n' + dynamicContext
+      }
 
       contextualMessages = [
         { role: 'assistant' as const, content: systemPrompt },
@@ -227,22 +274,21 @@ START NOW.`
       console.log('🤖 System Prompt generated with entities length:', entitiesText.length)
     } else {
       // RAG MODE - Document search and question answering
-      const ragSystemPrompt = `You are a helpful AI assistant specialized in answering questions about documents.
 
-Your capabilities:
-- You can search through uploaded documents using File Search
-- You have access to extracted business entities and their attributes
-- You provide accurate, sourced answers based on document content
+      // Try to use cached base prompt for RAG (saves ~200 tokens)
+      const cachedPromptId = await getCachedSystemPrompt('rag', RAG_BASE_SYSTEM_PROMPT)
 
-When answering questions:
-1. Search the documents for relevant information
-2. Provide clear, concise answers with context from the documents
-3. If information is not found, say so clearly
-4. Always cite the document sections you're referencing
-
-${entitiesText}
-
-Be helpful, accurate, and always cite your sources from the documents.`
+      // Build dynamic context (entities, cannot be cached)
+      let ragSystemPrompt: string
+      if (cachedPromptId) {
+        // Using cached base prompt + entities
+        console.log('🚀 Using CACHED RAG prompt (saving ~200 tokens)')
+        ragSystemPrompt = entitiesText
+      } else {
+        // Fallback: full prompt
+        console.log('⚠️ Cache not available, using full RAG prompt')
+        ragSystemPrompt = RAG_BASE_SYSTEM_PROMPT + '\n' + entitiesText
+      }
 
       contextualMessages = [
         { role: 'assistant' as const, content: ragSystemPrompt },
@@ -254,9 +300,38 @@ Be helpful, accurate, and always cite your sources from the documents.`
     // If file search stores are available, use them for RAG
     if (fileSearchStoreNames && fileSearchStoreNames.length > 0) {
       console.log('🔎 Using File Search with stores:', fileSearchStoreNames)
-      // Stream from File Search with RAG
+
+      // Select appropriate model based on query complexity (only for RAG mode)
+      let selectedModel: string
+      if (documentContext) {
+        // Compilation mode: always use full flash for accuracy
+        selectedModel = getCompilationModel()
+        console.log('📄 Using compilation model (flash) for accuracy')
+      } else {
+        // RAG mode: select based on query complexity
+        const lastUserMessage = messages[messages.length - 1]
+        const userQuery = lastUserMessage?.role === 'user' ? lastUserMessage.content : ''
+        selectedModel = selectModelForQuery(userQuery, messages.length)
+
+        // Log potential savings
+        if (selectedModel === AI_MODELS.RAG_SIMPLE) {
+          console.log('💰 Using flash-lite: expect 60-70% cost savings compared to flash')
+        }
+      }
+
+      // Get cached prompt ID for File Search
+      const cachedPromptIdForFileSearch = !documentContext
+        ? await getCachedSystemPrompt('rag', RAG_BASE_SYSTEM_PROMPT)
+        : null
+
+      // Stream from File Search with RAG (with optional cached content and dynamic model)
       let citations: any = null
-      for await (const chunk of streamChatWithFileSearch(contextualMessages, fileSearchStoreNames)) {
+      for await (const chunk of streamChatWithFileSearch(
+        contextualMessages,
+        fileSearchStoreNames,
+        cachedPromptIdForFileSearch,
+        selectedModel
+      )) {
         yield chunk
       }
       // Note: To get citations, we'd need to modify streamChatWithFileSearch to yield them separately
@@ -270,8 +345,22 @@ Be helpful, accurate, and always cite your sources from the documents.`
       .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
       .join('\n\n')
 
+    // Select model for fallback case
+    let fallbackModel: string
+    if (documentContext) {
+      fallbackModel = getCompilationModel()
+    } else {
+      const lastUserMessage = messages[messages.length - 1]
+      const userQuery = lastUserMessage?.role === 'user' ? lastUserMessage.content : ''
+      fallbackModel = selectModelForQuery(userQuery, messages.length)
+
+      if (fallbackModel === AI_MODELS.RAG_SIMPLE) {
+        console.log('💰 Using flash-lite for fallback: expect 60-70% cost savings')
+      }
+    }
+
     const response = await client.models.generateContent({
-      model: GEMINI_MODEL,
+      model: fallbackModel,
       contents: prompt,
       config: {
         thinkingConfig: {
