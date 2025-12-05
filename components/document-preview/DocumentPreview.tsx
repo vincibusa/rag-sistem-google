@@ -5,6 +5,7 @@ import { useChatStore } from '@/store/chat-store'
 import { useDocumentPreviewStream } from '@/hooks/useDocumentPreviewStream'
 import { TextPreview } from './TextPreview'
 import { VisualPreview } from './VisualPreview'
+import { SpreadsheetPreview } from './SpreadsheetPreview'
 import { LayoutControls } from './LayoutControls'
 import { cn } from '@/lib/utils'
 
@@ -46,12 +47,24 @@ export function DocumentPreview() {
       </div>
 
       {/* Preview content */}
-      <div className="flex-1 overflow-auto">
-        {documentPreview.previewMode === 'text' ? (
-          <TextPreview />
-        ) : (
-          <VisualPreview />
-        )}
+      <div className="flex-1 overflow-hidden">
+        {(() => {
+          // Check if file is Excel
+          const isExcel =
+            documentPreview.currentDocument?.file_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+            documentPreview.currentDocument?.file_type === 'application/vnd.ms-excel'
+
+          if (isExcel) {
+            return <SpreadsheetPreview />
+          }
+
+          // For other file types, use text or visual preview
+          if (documentPreview.previewMode === 'text') {
+            return <TextPreview />
+          } else {
+            return <VisualPreview />
+          }
+        })()}
       </div>
     </div>
   )

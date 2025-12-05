@@ -170,6 +170,16 @@ export async function* streamChatWithFileSearch(
     for await (const chunk of stream) {
       if (chunk.text) {
         yield chunk.text
+      } else if (chunk.candidates && chunk.candidates[0]) {
+        // Handle cases where text is in candidates structure
+        const content = chunk.candidates[0].content
+        if (content && content.parts) {
+          for (const part of content.parts) {
+            if (part.text) {
+              yield part.text
+            }
+          }
+        }
       }
       lastChunk = chunk
     }

@@ -11,19 +11,20 @@ import { User, Bot, FileText } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MessageActions } from './MessageActions'
 import { EditMessageDialog } from './EditMessageDialog'
-import { FileAttachment } from './FileAttachment'
 import { CitationDisplay } from './CitationDisplay'
 import { useChatStore } from '@/store/chat-store'
+
+export interface FileAttachment {
+  uri: string
+  name: string
+  mimeType: string
+  sizeBytes?: number
+}
 
 interface ChatMessageProps {
   message: Message
   citations?: Array<{ title: string; uri?: string }>
-  fileAttachments?: Array<{
-    uri: string
-    name: string
-    mimeType: string
-    sizeBytes?: number
-  }>
+  fileAttachments?: FileAttachment[]
 }
 
 export function ChatMessage({ message, citations, fileAttachments }: ChatMessageProps) {
@@ -68,6 +69,26 @@ export function ChatMessage({ message, citations, fileAttachments }: ChatMessage
                   : 'bg-card border text-card-foreground rounded-tl-sm'
               )}
             >
+              {/* File Attachments */}
+              {fileAttachments && fileAttachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {fileAttachments.map((file, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium",
+                        isUser
+                          ? "bg-primary-foreground/10 text-primary-foreground border border-primary-foreground/20"
+                          : "bg-muted text-foreground border border-border"
+                      )}
+                    >
+                      <FileText className="h-4 w-4 opacity-70" />
+                      <span className="truncate max-w-[150px]">{file.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <ReactMarkdown
                 className={cn(
                   'prose prose-sm break-words max-w-none',
@@ -176,39 +197,10 @@ export function ChatMessage({ message, citations, fileAttachments }: ChatMessage
             )}
           </div>
 
-        {/* Display file attachments */}
-        {fileAttachments && fileAttachments.length > 0 && (
-          <div className="mt-3 flex flex-col gap-2 w-full">
-            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <FileText className="h-3 w-3" />
-              Attachments
-            </p>
-            <div className="flex flex-col gap-2">
-              {fileAttachments.map((attachment, idx) => (
-                <FileAttachment
-                  key={idx}
-                  uri={attachment.uri}
-                  name={attachment.name}
-                  mimeType={attachment.mimeType}
-                  sizeBytes={attachment.sizeBytes}
-                  onDownload={(uri, name) => {
-                    // Download functionality
-                    const link = document.createElement('a')
-                    link.href = uri
-                    link.download = name
-                    link.click()
-                  }}
-                  className="max-w-md"
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Display citations from File Search RAG */}
-        {!isUser && citations && citations.length > 0 && (
-          <CitationDisplay citations={citations} />
-        )}
+          {/* Display citations from File Search RAG */}
+          {!isUser && citations && citations.length > 0 && (
+            <CitationDisplay citations={citations} />
+          )}
         </div>
       </div>
 

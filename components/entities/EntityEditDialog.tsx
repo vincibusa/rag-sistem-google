@@ -125,29 +125,36 @@ export function EntityEditDialog({ entity, open, onClose }: EntityEditDialogProp
           <div className="space-y-2">
             <Label>Attributes</Label>
             <div className="space-y-2">
-              {Object.entries(attributes).map(([key, value]) => (
-                <div key={key} className="flex gap-2">
-                  <Input
-                    value={key}
-                    disabled
-                    className="flex-1 bg-muted"
-                    placeholder="Key"
-                  />
-                  <Input
-                    value={value as string}
-                    onChange={(e) => handleUpdateAttribute(key, e.target.value)}
-                    className="flex-1"
-                    placeholder="Value"
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleRemoveAttribute(key)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              {Object.entries(attributes).map(([key, value]) => {
+                // Format value for display (handle nested objects)
+                const displayValue = typeof value === 'object' && value !== null
+                  ? JSON.stringify(value)
+                  : String(value)
+
+                return (
+                  <div key={key} className="flex gap-2">
+                    <Input
+                      value={key}
+                      disabled
+                      className="flex-1 bg-muted"
+                      placeholder="Key"
+                    />
+                    <Input
+                      value={displayValue}
+                      onChange={(e) => handleUpdateAttribute(key, e.target.value)}
+                      className="flex-1"
+                      placeholder="Value"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleRemoveAttribute(key)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+              })}
 
               {/* Add New Attribute */}
               <div className="flex gap-2 pt-2">

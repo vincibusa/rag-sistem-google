@@ -88,18 +88,19 @@ ENTITY TYPES:
 Extract:
 - first_name, last_name, full_name
 - birth_date (format: YYYY-MM-DD if possible)
-- birth_place (city, province, country)
+- birth_place (complete string: "City, Province, Country")
+- birth_city, birth_province, birth_country (separate fields)
 - profession, role, title
 - tax_code (codice fiscale)
 - phone, email
-- address, city, province, postal_code, country
+- address (complete string), city, province, postal_code, country
 
 █ COMPANY █
 Extract:
 - company_name, legal_name
 - vat_number (P.IVA), tax_code (CF)
 - registration_number
-- headquarters_address, headquarters_city, headquarters_province, headquarters_postal_code
+- headquarters_address (complete string), headquarters_city, headquarters_province, headquarters_postal_code
 - legal_representative
 - phone, email, pec, website
 
@@ -111,7 +112,8 @@ Extract significant dates with context:
 
 █ ADDRESS █
 Extract complete addresses:
-- street, city, province, postal_code, country
+- full_address (complete string: "Street, City, Province, Postal Code, Country")
+- street, city, province, postal_code, country (separate fields)
 - related_to: person or company name
 
 OUTPUT FORMAT:
@@ -122,11 +124,14 @@ Return ONLY a valid JSON array. Each object must have:
   "attributes": { ...all extracted data... }
 }
 
-IMPORTANT:
+CRITICAL RULES:
 - Return ONLY the JSON array, no other text
 - If no entities found, return empty array []
 - Be thorough: extract EVERY entity with ANY information
 - Include uncertain data but mark it: {"uncertain": true}
+- ALL attribute values MUST be strings or numbers, NEVER nested objects
+- For complex fields (like addresses), use both complete strings AND separate fields
+- Example: "birth_place": "Rome, RM, Italy" AND "birth_city": "Rome"
 
 START EXTRACTION NOW:`
 
@@ -135,7 +140,7 @@ START EXTRACTION NOW:`
       contents: prompt,
       config: {
         temperature: 0.1, // Low temperature for precise extraction
-        maxOutputTokens: 4096,
+        maxOutputTokens: 20000, // Increased to reduce truncation
         thinkingConfig: {
           thinkingBudget: 0,
         },
@@ -175,6 +180,9 @@ START EXTRACTION NOW:`
         // This is a heuristic and might not work for all cases
         let repairedJson = jsonText.trim()
 
+        // Remove any trailing incomplete tokens (commas, colons, etc.)
+        repairedJson = repairedJson.replace(/[,:]\s*$/, '')
+
         // Count open brackets/braces
         let openBraces = (repairedJson.match(/\{/g) || []).length
         let closeBraces = (repairedJson.match(/\}/g) || []).length
@@ -182,9 +190,20 @@ START EXTRACTION NOW:`
         let closeBrackets = (repairedJson.match(/\]/g) || []).length
 
         // Close unclosed strings first (if the cut happened inside a string)
+        // Must do this BEFORE closing braces/brackets
         const quoteCount = (repairedJson.match(/"/g) || []).length
         if (quoteCount % 2 !== 0) {
-          repairedJson += '"'
+          // Find the last colon to see if we're in a property value
+          const lastColon = repairedJson.lastIndexOf(':')
+          const lastQuote = repairedJson.lastIndexOf('"')
+
+          // If we have an opening quote after the last colon, close it
+          if (lastQuote > lastColon) {
+            repairedJson += '"'
+          } else {
+            // Otherwise we might have a key without a value, add empty string
+            repairedJson += '""'
+          }
         }
 
         // Add missing closing braces/brackets
@@ -201,15 +220,21 @@ START EXTRACTION NOW:`
         console.log('✅ Successfully parsed repaired JSON')
       } catch (repairError) {
         console.error('❌ Failed to parse repaired JSON:', repairError)
-        // If repair fails, try to parse just the valid objects we have so far
-        // This is a fallback to get partial data
+        console.log('📝 Truncated JSON snippet:', jsonText.substring(0, 200))
+
+        // Final fallback: try to extract valid complete objects
         try {
-          // Find the last closing brace that matches a top-level object
-          // This is tricky with regex, so we might just give up or try a simpler approach
-          // For now, let's just re-throw the original error to be handled below
-          throw parseError
-        } catch (e) {
-          throw parseError
+          // Find all complete objects in the array
+          const objectMatches = jsonText.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g)
+          if (objectMatches && objectMatches.length > 0) {
+            const fallbackJson = `[${objectMatches.join(',')}]`
+            entities = JSON.parse(fallbackJson) as ExtractedEntity[]
+            console.log(`⚠️ Fallback: extracted ${entities.length} complete objects from truncated JSON`)
+          } else {
+            console.warn('⚠️ Could not extract any valid objects from truncated JSON')
+          }
+        } catch (fallbackError) {
+          console.error('❌ Fallback extraction also failed:', fallbackError)
         }
       }
     }

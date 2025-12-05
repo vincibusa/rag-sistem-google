@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import type { Tables } from '@/lib/database.types'
 import { useFilesStore } from '@/store/files-store'
 import { useChatStore } from '@/store/chat-store'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 type DocumentSession = Tables<'document_sessions'>
 
@@ -40,7 +41,7 @@ export function ChatContainer({
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const { files } = useFilesStore()
-  const { documentPreview, setDocumentPreviewVisible, setPreviewDocument } = useChatStore()
+  const { documentPreview, setDocumentPreviewVisible, setPreviewDocument, chatMode, setChatMode } = useChatStore()
 
   // Function to get file attachments from file URIs
   const getFileAttachments = (fileUris: string[]) => {
@@ -73,6 +74,7 @@ export function ChatContainer({
       documentSessionId: documentSession?.id,
       fileName: documentSession?.original_file_name
     })
+    console.log('DEBUG: Mode toggle. chatMode:', chatMode, 'documentSession:', documentSession?.id)
 
     if (documentSession) {
       console.log('🔍 ChatContainer - Setting preview document and making visible')
@@ -83,7 +85,7 @@ export function ChatContainer({
       setDocumentPreviewVisible(false)
       setPreviewDocument(null)
     }
-  }, [documentSession, setPreviewDocument, setDocumentPreviewVisible])
+  }, [documentSession, setPreviewDocument, setDocumentPreviewVisible, chatMode])
 
   // Auto-scroll to bottom when new messages appear
   useEffect(() => {
@@ -103,7 +105,29 @@ export function ChatContainer({
             : '100%'
         }}
       >
-        {/* Document Session Bar */}
+        {/* Mode Toggle Toolbar - ALWAYS VISIBLE */}
+        <motion.div
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -20, opacity: 0 }}
+          className="border-b bg-gradient-to-r from-primary/5 to-primary/10 p-3 flex items-center justify-center"
+        >
+          <div className="flex items-center gap-4 bg-background/60 px-4 py-2 rounded-lg border border-primary/20">
+            <span className="text-sm font-semibold text-foreground">Chat Mode:</span>
+            <Tabs value={chatMode} onValueChange={(v) => setChatMode(v as 'rag' | 'compilation')} className="h-9">
+              <TabsList className="h-9 bg-muted/50">
+                <TabsTrigger value="rag" className="text-sm h-8 px-4 gap-2">
+                  <span>💬</span> RAG Chat
+                </TabsTrigger>
+                <TabsTrigger value="compilation" className="text-sm h-8 px-4 gap-2">
+                  <span>📝</span> Compile
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </motion.div>
+
+        {/* Document Session Bar - ONLY when document is loaded */}
         {documentSession && (
           <motion.div
             initial={{ y: -20, opacity: 0 }}
@@ -115,9 +139,15 @@ export function ChatContainer({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm truncate">{documentSession.original_file_name}</span>
-                <Badge variant="secondary" className="text-xs">Compiling</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {chatMode === 'compilation' ? 'Compiling' : 'RAG Mode'}
+                </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">Ask me to help you fill this document</p>
+              <p className="text-xs text-muted-foreground">
+                {chatMode === 'compilation'
+                  ? 'Ask me to help you fill this document'
+                  : 'Chatting with your documents'}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               {documentSession.compiled_content && (
@@ -203,7 +233,7 @@ export function ChatContainer({
                     >
                       <ChatMessage
                         message={message}
-                        fileAttachments={message.fileUris && message.fileUris.length > 0 ? getFileAttachments(message.fileUris) : undefined}
+
                       />
                     </motion.div>
                   ))}
